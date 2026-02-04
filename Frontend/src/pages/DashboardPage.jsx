@@ -95,23 +95,23 @@ function DashboardPage() {
           <StatCard
             icon={Users}
             label="Tổng số nhân viên"
-            value={stats?.totalEmployees || "1,284"}
+            value={stats?.totalEmployees || "0"}
           />
           <StatCard
             icon={Users}
             label="Đang có mặt"
-            value={stats?.presentToday || "1,102"}
+            value={stats?.presentToday || "0"}
           />
           <StatCard
             icon={AlertTriangle}
             label="Số vi phạm an ninh hôm nay"
-            value={stats?.violations || "3"}
+            value={stats?.violations || "0"}
             highlight
           />
           <StatCard
             icon={connected ? Wifi : WifiOff}
             label="Thiết bị"
-            value={`${stats?.devicesOnline || "42"}/45`}
+            value={`${stats?.devicesOnline || "0"}/45`}
           />
         </div>
 

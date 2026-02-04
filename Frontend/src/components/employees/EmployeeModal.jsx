@@ -77,7 +77,9 @@ function EmployeeModal({ employee, departments, onClose, onSave }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>{employee ? "Chỉnh sửa nhân viên" : "Thêm nhân viên mới"}</h2>
+          <h2>
+            {employee ? "Chỉnh sửa thông tin nhân viên" : "Thêm nhân viên mới"}
+          </h2>
           <button className="modal-close" onClick={onClose}>
             <X size={20} />
           </button>

@@ -2,7 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import EmployeesPage from "./pages/EmployeesPage";
+import SettingsPage from "./pages/SettingsPage"; // <-- Import mới
 import { authService } from "./services/authService";
+import AdminUsersPage from "./pages/AdminUsersPage";
 import "./App.css";
 
 // Protected Route Component
@@ -28,6 +30,24 @@ function App() {
           element={
             <ProtectedRoute>
               <EmployeesPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Route mới cho Settings */}
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute>
+              <AdminUsersPage />
             </ProtectedRoute>
           }
         />
