@@ -52,10 +52,13 @@ function Sidebar({ user }) {
           <FileText size={20} />
           <span>Access Logs</span>
         </a>
-        <a href="#" className="nav-item">
+        <Link
+          to="/devices"
+          className={`nav-item ${location.pathname === "/devices" ? "active" : ""}`}
+        >
           <Wifi size={20} />
           <span>Devices</span>
-        </a>
+        </Link>
         {isSystemAdmin(user?.role) && (
           <Link
             to="/admin/users"
