@@ -5,6 +5,7 @@ import EmployeesPage from "./pages/EmployeesPage";
 import SettingsPage from "./pages/SettingsPage"; // <-- Import mới
 import { authService } from "./services/authService";
 import AdminUsersPage from "./pages/AdminUsersPage";
+import DevicesPage from "./pages/DevicesPage";
 import { RoleProtectedRoute } from "./components/auth/RoleProtectedRoute";
 import "./App.css";
 
@@ -57,6 +58,14 @@ function App() {
           element={
             <RoleProtectedRoute allowedRoles={[0, "SuperAdmin"]}>
               <AdminUsersPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/devices"
+          element={
+            <RoleProtectedRoute allowedRoles={[0, "SuperAdmin"]}>
+              <DevicesPage />
             </RoleProtectedRoute>
           }
         />
