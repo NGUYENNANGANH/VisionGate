@@ -121,4 +121,10 @@ public class AuthService : IAuthService
     {
         return HashPassword(password) == passwordHash;
     }
+    public async Task<IEnumerable<User>> GetAllUsersAsync()
+{
+    return await _context.Users
+        .OrderByDescending(u => u.CreatedAt)
+        .ToListAsync();
+}
 }

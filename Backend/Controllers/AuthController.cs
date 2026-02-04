@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VisionGate.Models;
 using VisionGate.Services.Interfaces;
+using VisionGate.Data;
 
 namespace VisionGate.Controllers;
 
@@ -10,11 +11,13 @@ namespace VisionGate.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
+
     private readonly IAuthService _authService;
 
     public AuthController(IAuthService authService)
     {
         _authService = authService;
+       
     }
 
     /// <summary>
@@ -43,10 +46,10 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Tạo user mới (chỉ Admin)
+    /// Tạo user mới (chỉ superAdmin)
     /// </summary>
     [HttpPost("users")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
     {
         var user = await _authService.CreateUserAsync(
@@ -70,6 +73,27 @@ public class AuthController : ControllerBase
             message = "Tạo user thành công"
         });
     }
+        /// <summary>
+    /// Lấy danh sách tất cả users (chỉ SuperAdmin)
+    /// </summary>
+   [HttpGet("users")]
+[Authorize(Roles = "SuperAdmin")]
+public async Task<IActionResult> GetAllUsers()
+{
+    var users = await _authService.GetAllUsersAsync();
+    
+    return Ok(users.Select(u => new
+    {
+        u.UserId,
+        u.Username,
+        u.FullName,
+        u.Email,
+        u.Role,
+        u.IsActive,
+        u.LastLoginAt,
+        u.CreatedAt
+    }));
+}
 
     /// <summary>
     /// Đổi mật khẩu
@@ -111,6 +135,7 @@ public class AuthController : ControllerBase
             user.LastLoginAt
         });
     }
+    
 }
 
 public record LoginRequest(string Username, string Password);
