@@ -170,7 +170,7 @@ function SettingsPage() {
           >
             <Key size={18} /> Bảo mật
           </button>
-          {user.role === "Admin" || user.role === "SuperAdmin" ? (
+          {user.role === "0" || user.role === "SuperAdmin" ? (
             <button
               className={`tab-btn ${activeTab === "system" ? "active" : ""}`}
               onClick={() => setActiveTab("system")}

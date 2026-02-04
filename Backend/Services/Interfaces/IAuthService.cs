@@ -8,4 +8,5 @@ public interface IAuthService
     Task<User?> CreateUserAsync(string username, string password, string fullName, string email, UserRole role);
     Task<bool> ChangePasswordAsync(int userId, string oldPassword, string newPassword);
     Task<User?> GetUserByIdAsync(int userId);
+    Task<IEnumerable<User>> GetAllUsersAsync();
 }

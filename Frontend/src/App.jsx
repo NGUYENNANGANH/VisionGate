@@ -5,6 +5,7 @@ import EmployeesPage from "./pages/EmployeesPage";
 import SettingsPage from "./pages/SettingsPage"; // <-- Import mới
 import { authService } from "./services/authService";
 import AdminUsersPage from "./pages/AdminUsersPage";
+import { RoleProtectedRoute } from "./components/auth/RoleProtectedRoute";
 import "./App.css";
 
 // Protected Route Component
@@ -49,6 +50,14 @@ function App() {
             <ProtectedRoute>
               <AdminUsersPage />
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <RoleProtectedRoute allowedRoles={[0, "SuperAdmin"]}>
+              <AdminUsersPage />
+            </RoleProtectedRoute>
           }
         />
         <Route path="/" element={<Navigate to="/dashboard" />} />
