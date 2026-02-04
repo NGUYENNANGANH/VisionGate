@@ -1,0 +1,92 @@
+.compliance-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+
+.compliance-card .card-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.compliance-chart {
+  display: flex;
+  justify-content: center;
+  padding: 40px 0;
+}
+
+.donut-chart {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: conic-gradient(
+    #3b82f6 0deg 135deg,
+    #22c55e 135deg 270deg,
+    #e5e7eb 270deg 360deg
+  );
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.donut-chart::before {
+  content: "";
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.chart-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #0f172a;
+  z-index: 1;
+}
+
+.chart-label {
+  font-size: 11px;
+  color: #64748b;
+  z-index: 1;
+}
+
+.compliance-legend {
+  margin-top: 24px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend-dot.blue {
+  background: #3b82f6;
+}
+
+.legend-dot.green {
+  background: #22c55e;
+}
+
+.legend-dot.gray {
+  background: #e5e7eb;
+}
+
+.legend-value {
+  margin-left: auto;
+  font-weight: 600;
+  color: #0f172a;
+}
