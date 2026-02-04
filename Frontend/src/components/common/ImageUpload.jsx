@@ -9,6 +9,9 @@ function ImageUpload({ value, onChange, label = "Upload ảnh" }) {
   const [error, setError] = useState("");
   const fileInputRef = useRef(null);
 
+  //   useEffect(() => {
+  //     setPreview(value || null);
+  //   }, [value]);
   const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
