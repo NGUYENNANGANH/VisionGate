@@ -5,6 +5,7 @@ using VisionGate.Hubs;
 using VisionGate.Models;
 using VisionGate.Repositories.Interfaces;
 using VisionGate.Services.Interfaces;
+using VisionGate.Helpers;
 
 namespace VisionGate.Controllers;
 
@@ -82,6 +83,7 @@ public class CheckInsController : ControllerBase
     {
         try
         {
+         
             // 1. Create CheckInRecord
             var checkIn = new CheckInRecord
             {
@@ -89,7 +91,7 @@ public class CheckInsController : ControllerBase
                 DeviceId = request.DeviceId,
                 CheckInImageUrl = request.CheckInImageUrl,
                 FaceConfidence = request.FaceConfidence,
-                CheckInTime = DateTime.UtcNow,
+                CheckInTime = DateTimeHelper.VietnamNow(),
                 Status = CheckInStatus.Success
             };
 
@@ -97,7 +99,7 @@ public class CheckInsController : ControllerBase
             var ppeDetection = new PPEDetection
             {
                 EmployeeId = request.EmployeeId,
-                DetectionTime = DateTime.UtcNow,
+                DetectionTime = DateTimeHelper.VietnamNow(),
                 ImageUrl = request.CheckInImageUrl,
                 HasHelmet = request.HasHelmet,
                 HasGloves = request.HasGloves,
@@ -117,7 +119,7 @@ public class CheckInsController : ControllerBase
             checkIn.HasPPE = ppeDetection.OverallCompliance;
 
             var createdCheckIn = await _checkInService.CreateCheckInAsync(checkIn);
-
+            Console.WriteLine($"✅ CheckIn created - Status: {createdCheckIn.Status} (HasPPE: {createdCheckIn.HasPPE})");
             // 4. Create Violations if needed
             var violationIds = new List<int>();
             var violations = new List<Violation>();

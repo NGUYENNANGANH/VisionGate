@@ -30,31 +30,6 @@ public class EmployeeRepository : IEmployeeRepository
 
         return await query
             .OrderBy(e => e.EmployeeCode)
-            .Select(e => new Employee
-            {
-                EmployeeId = e.EmployeeId,
-                EmployeeCode = e.EmployeeCode,
-                FullName = e.FullName,
-                Email = e.Email,
-                PhoneNumber = e.PhoneNumber,
-                DepartmentId = e.DepartmentId,
-                Position = e.Position,
-                FaceImageUrl = e.FaceImageUrl,
-                TelegramUserId = e.TelegramUserId,
-                IsActive = e.IsActive,
-                StartDate = e.StartDate,
-                CreatedAt = e.CreatedAt,
-                UpdatedAt = e.UpdatedAt,
-                // Chỉ load thông tin cơ bản của Department, KHÔNG load Employees của Department
-                Department = e.Department == null ? null : new Department
-                {
-                    DepartmentId = e.Department.DepartmentId,
-                    DepartmentCode = e.Department.DepartmentCode,
-                    DepartmentName = e.Department.DepartmentName,
-                    Description = e.Department.Description,
-                    IsActive = e.Department.IsActive
-                }
-            })
             .ToListAsync();
     }
 

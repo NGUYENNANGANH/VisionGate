@@ -24,6 +24,7 @@ public class CheckInRepository : ICheckInRepository
             .Include(c => c.Employee)
             .Include(c => c.Device)
             .Include(c => c.PPEDetection)
+            .AsNoTracking() // Improve performance
             .AsQueryable();
 
         if (from.HasValue)
@@ -38,7 +39,12 @@ public class CheckInRepository : ICheckInRepository
         if (status.HasValue)
             query = query.Where(c => c.Status == status.Value);
 
-        return await query.OrderByDescending(c => c.CheckInTime).ToListAsync();
+        // Limit to most recent 100 records to prevent timeout
+        // Frontend should use date filters for larger datasets
+        return await query
+            .OrderByDescending(c => c.CheckInTime)
+            .Take(100)
+            .ToListAsync();
     }
 
     public async Task<CheckInRecord?> GetByIdAsync(int id)

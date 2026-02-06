@@ -1,6 +1,7 @@
 using VisionGate.Models;
 using VisionGate.Services.Interfaces;
 using VisionGate.Repositories.Interfaces;
+using VisionGate.Helpers;
 
 namespace VisionGate.Services;
 
@@ -39,21 +40,13 @@ public class CheckInService : ICheckInService
 
     public async Task<CheckInRecord> CreateCheckInAsync(CheckInRecord checkIn)
     {
-        checkIn.CreatedAt = DateTime.UtcNow;
-        checkIn.CheckInTime = DateTime.UtcNow;
+        checkIn.CreatedAt = DateTimeHelper.VietnamNow();
+        checkIn.CheckInTime = DateTimeHelper.VietnamNow();
 
         // Validate employee exists
         var employee = await _employeeRepository.GetByIdAsync(checkIn.EmployeeId);
         if (employee == null)
             throw new InvalidOperationException($"Employee with ID {checkIn.EmployeeId} not found.");
-
-        // Set status based on face confidence and PPE
-        if (checkIn.FaceConfidence < 0.7m)
-            checkIn.Status = CheckInStatus.Warning;
-        else if (!checkIn.HasPPE)
-            checkIn.Status = CheckInStatus.Warning;
-        else
-            checkIn.Status = CheckInStatus.Success;
 
         return await _checkInRepository.AddAsync(checkIn);
     }
@@ -67,8 +60,8 @@ public class CheckInService : ICheckInService
         // Save PPE detection
         ppeDetection.CheckInId = checkInId;
         ppeDetection.EmployeeId = checkIn.EmployeeId;
-        ppeDetection.DetectionTime = DateTime.UtcNow;
-        ppeDetection.CreatedAt = DateTime.UtcNow;
+        ppeDetection.DetectionTime = DateTimeHelper.VietnamNow();
+        ppeDetection.CreatedAt = DateTimeHelper.VietnamNow();
 
         var saved = await _ppeDetectionRepository.AddAsync(ppeDetection);
 
@@ -93,7 +86,7 @@ public class CheckInService : ICheckInService
 
     public async Task<object> GetTodayStatsAsync()
     {
-        var today = DateTime.UtcNow.Date;
+        var today = DateTimeHelper.VietnamNow().Date;
 
         var totalCheckIns = await _checkInRepository.GetTodayCountAsync();
         var withPPE = await _checkInRepository.GetTodayWithPPECountAsync();
