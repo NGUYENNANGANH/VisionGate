@@ -1,11 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import DashboardPage from "./pages/DashboardPage";
 import EmployeesPage from "./pages/EmployeesPage";
-import SettingsPage from "./pages/SettingsPage"; // <-- Import mới
-import { authService } from "./services/authService";
+import SettingsPage from "./pages/SettingsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import DevicesPage from "./pages/DevicesPage";
+import AccessLogsPage from "./pages/AccessLogsPage";
+import { authService } from "./services/authService";
 import { RoleProtectedRoute } from "./components/auth/RoleProtectedRoute";
 import "./App.css";
 
@@ -19,6 +21,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route
           path="/dashboard"
           element={
@@ -35,8 +38,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
-        {/* Route mới cho Settings */}
         <Route
           path="/settings"
           element={
@@ -46,10 +47,10 @@ function App() {
           }
         />
         <Route
-          path="/admin/users"
+          path="/access-logs"
           element={
             <ProtectedRoute>
-              <AdminUsersPage />
+              <AccessLogsPage />
             </ProtectedRoute>
           }
         />
