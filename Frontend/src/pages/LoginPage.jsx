@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Eye, EyeOff, Lock, User, Shield } from "lucide-react";
 import { authService } from "../services/authService";
 import "./LoginPage.css";
@@ -20,17 +20,13 @@ function LoginPage() {
 
     try {
       const data = await authService.login(username, password);
-
-      // Save token and user info
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-
-      // Redirect to dashboard
       navigate("/dashboard");
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.",
+          "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin."
       );
     } finally {
       setLoading(false);
@@ -42,24 +38,18 @@ function LoginPage() {
       <div className="login-left">
         <div className="ai-badge">
           <Shield size={16} />
-          <span>AI Powered Security</span>
+          <span>Bảo Mật Bằng AI</span>
         </div>
 
         <div className="login-content">
-          <h1 className="login-title">Enterprise Access</h1>
-          <h2 className="login-subtitle">Controlled by AI.</h2>
-
+          <h1 className="login-title">Truy cập doanh nghiệp</h1>
+          <h2 className="login-subtitle">Kiểm soát bởi AI.</h2>
           <p className="login-description">
-            VisionGate uses advanced biometric recognition to ensure that only
-            authorized personnel can access sensitive environments.
+            VisionGate sử dụng công nghệ nhận dạng sinh trắc học tiên tiến để
+            đảm bảo chỉ những người được ủy quyền mới có thể truy cập vào các
+            khu vực nhạy cảm.
           </p>
         </div>
-
-        {/* <div className="face-recognition-visual">
-          <div className="face-outline">
-            <div className="scan-line"></div>
-          </div>
-        </div> */}
       </div>
 
       <div className="login-right">
@@ -69,13 +59,12 @@ function LoginPage() {
               <Shield className="logo-icon" size={32} />
               <span className="logo-text">VisionGate</span>
             </div>
-            {/* Đã xóa nút ngôn ngữ tại đây */}
           </div>
 
           <div className="form-wrapper">
-            <h2 className="form-title">Secure Login</h2>
+            <h2 className="form-title">Đăng nhập</h2>
             <p className="form-subtitle">
-              Enter your credentials to access the security dashboard
+              Nhập thông tin đăng nhập để truy cập bảng điều khiển bảo mật
             </p>
 
             {error && (
@@ -86,13 +75,13 @@ function LoginPage() {
 
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label htmlFor="username">Username or Email</label>
+                <label htmlFor="username">Tên đăng nhập</label>
                 <div className="input-wrapper">
-                  <User className="input-icon" size={20} />
+                  <User className="input-icon" size={12} />
                   <input
                     id="username"
                     type="text"
-                    placeholder="Enter your username"
+                    placeholder="Nhập tên đăng nhập của bạn"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
@@ -103,17 +92,17 @@ function LoginPage() {
 
               <div className="form-group">
                 <div className="label-row">
-                  <label htmlFor="password">Password</label>
-                  <a href="#" className="forgot-link">
-                    Forgot password?
-                  </a>
+                  <label htmlFor="password">Mật khẩu</label>
+                  <Link to="/forgot-password" className="forgot-link">
+                    Quên mật khẩu?
+                  </Link>
                 </div>
                 <div className="input-wrapper">
-                  <Lock className="input-icon" size={20} />
+                  <Lock className="input-icon" size={12} />
                   <input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
+                    placeholder="Nhập mật khẩu của bạn"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -124,7 +113,7 @@ function LoginPage() {
                     className="toggle-password"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    {showPassword ? <EyeOff size={12} /> : <Eye size={12} />}
                   </button>
                 </div>
               </div>
@@ -136,22 +125,14 @@ function LoginPage() {
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                   />
-                  <span>Stay signed in for 30 days</span>
+                  <span>Duy trì đăng nhập trong 30 ngày</span>
                 </label>
               </div>
 
               <button type="submit" className="submit-btn" disabled={loading}>
-                {loading ? "Signing in..." : "Sign In"}
+                {loading ? "Đang đăng nhập..." : "Đăng Nhập"}
               </button>
             </form>
-
-            <div className="footer-links">
-              <a href="#">Help Center</a>
-              <span>•</span>
-              <a href="#">Privacy Policy</a>
-              <span>•</span>
-              <a href="#">Terms of Service</a>
-            </div>
 
             <p className="powered-by">Powered by HINET</p>
           </div>
