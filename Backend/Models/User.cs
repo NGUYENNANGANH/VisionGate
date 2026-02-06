@@ -19,6 +19,10 @@ public class User
     public DateTime? LastLoginAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
+    
+    // Password Reset
+    public string? PasswordResetToken { get; set; }
+    public DateTime? PasswordResetTokenExpiry { get; set; }
 
     // Navigation
     public ICollection<Violation> ResolvedViolations { get; set; } = new List<Violation>();
