@@ -48,10 +48,13 @@ function Sidebar({ user }) {
           <Users size={20} />
           <span>Employees</span> {/* Nhân viên */}
         </Link>
-        <a href="#" className="nav-item">
+        <Link
+          to="/access-logs"
+          className={`nav-item ${location.pathname === "/access-logs" ? "active" : ""}`}
+        >
           <FileText size={20} />
           <span>Access Logs</span>
-        </a>
+        </Link>
         <Link
           to="/devices"
           className={`nav-item ${location.pathname === "/devices" ? "active" : ""}`}
