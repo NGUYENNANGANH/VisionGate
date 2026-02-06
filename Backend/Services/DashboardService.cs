@@ -29,6 +29,7 @@ public class DashboardService : IDashboardService
         var todayCheckIns = await _checkInRepository.GetTodayCountAsync();
         var todayViolations = await _violationRepository.GetTodayCountAsync();
         var onlineDevices = await _deviceRepository.GetOnlineCountAsync();
+         var allDevices = await _deviceRepository.GetAllAsync(); 
 
         var ppeCompliance = todayCheckIns > 0
             ? await _checkInRepository.GetTodayWithPPECountAsync() * 100.0 / todayCheckIns
@@ -40,6 +41,7 @@ public class DashboardService : IDashboardService
             TodayCheckIns = todayCheckIns,
             TodayViolations = todayViolations,
             OnlineDevices = onlineDevices,
+            TotalDevices = allDevices.Count(),
             PPEComplianceRate = Math.Round(ppeCompliance, 2)
         };
     }

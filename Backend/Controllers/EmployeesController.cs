@@ -1,6 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using VisionGate.Models;
 using VisionGate.Services.Interfaces;
+using System.Text.Json;
+using System.Text;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using System.Linq.Expressions;
 
 namespace VisionGate.Controllers;
 
@@ -9,10 +13,12 @@ namespace VisionGate.Controllers;
 public class EmployeesController : ControllerBase
 {
     private readonly IEmployeeService _employeeService;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public EmployeesController(IEmployeeService employeeService)
+    public EmployeesController(IEmployeeService employeeService, IHttpClientFactory httpClientFactory)
     {
         _employeeService = employeeService;
+        _httpClientFactory = httpClientFactory;
     }
 
     // GET: api/employees
@@ -44,6 +50,57 @@ public class EmployeesController : ControllerBase
         try
         {
             var created = await _employeeService.CreateEmployeeAsync(employee);
+            if (!string.IsNullOrEmpty(created.FaceImageUrl))
+            {
+                try
+                {
+                    var client = _httpClientFactory.CreateClient();
+                    var pyServiceUrl = "http://127.0.0.1:5000/api/encode";
+                    
+                    var payload = new {url = created.FaceImageUrl};
+                    var jsonContent = new StringContent(
+                        JsonSerializer.Serialize(payload),
+                        Encoding.UTF8,
+                        "application/json");
+                    var response = await client.PostAsync(pyServiceUrl, jsonContent);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var responseString = await response.Content.ReadAsStringAsync();
+                        using var doc = JsonDocument.Parse(responseString);
+                        var root = doc.RootElement;
+                        if(root.GetProperty("Success").GetBoolean())
+                        {
+                            // lay mang 
+                            var vectorArray = root.GetProperty("Embedding")
+                            .EnumerateArray()
+                            .Select(e => e.GetSingle())
+                            .ToArray(); 
+
+                            // chuyen float sang byte
+                            var byteArray = new byte[vectorArray.Length * sizeof(float)];
+                            Buffer.BlockCopy(vectorArray, 0, byteArray, 0, byteArray.Length);
+                            created.FaceEmbedding = byteArray;
+
+                            // cao nhat FaceEmbedding vao Database
+                            created.FaceEmbedding = byteArray;
+                            await _employeeService.UpdateEmployeeAsync(created.EmployeeId, created);
+
+                            Console.WriteLine("Face embedding updated for employee ID: " + created.EmployeeId);
+                        }
+                        else
+                        {
+                            var message = root.GetProperty("Message").GetString();
+                            Console.WriteLine("Python service error: " + message);
+                            
+                        }
+                   }
+
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine("Exception while calling Python service: " + ex.Message);
+                }
+            }
             return CreatedAtAction(nameof(GetEmployee), new { id = created.EmployeeId }, created);
         }
         catch (InvalidOperationException ex)

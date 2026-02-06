@@ -24,6 +24,14 @@ function DashboardPage() {
       setStats(statsRes.data);
     } catch (error) {
       console.error("Failed to load dashboard data:", error);
+      // Set default stats on error to prevent infinite loading
+      setStats({
+        totalEmployees: 0,
+        presentToday: 0,
+        violations: 0,
+        onlineDevices: 0,
+        totalDevices: 0,
+      });
     }
   }, []);
 
@@ -48,8 +56,14 @@ function DashboardPage() {
         showNotification("Cảnh báo vi phạm mới!", data);
       });
 
-      await signalRService.start();
-      setConnected(true);
+      const connected = await signalRService.start();
+      setConnected(connected);
+
+      if (!connected) {
+        console.warn(
+          "⚠️ SignalR connection failed. Real-time updates disabled.",
+        );
+      }
     } catch (error) {
       console.error("SignalR connection failed:", error);
       setConnected(false);
@@ -70,7 +84,7 @@ function DashboardPage() {
     return () => {
       signalRService.off("ReceiveNewCheckIn");
       signalRService.off("ReceiveNewViolation");
-      signalRService.stop();
+      // Don't stop SignalR here - let it manage its own lifecycle
     };
   }, [loadDashboardData, connectSignalR]);
 
@@ -111,7 +125,7 @@ function DashboardPage() {
           <StatCard
             icon={connected ? Wifi : WifiOff}
             label="Thiết bị"
-            value={`${stats?.devicesOnline || "0"}/45`}
+            value={`${stats?.onlineDevices || "0"}/${stats?.totalDevices || "0"}`}
           />
         </div>
 
