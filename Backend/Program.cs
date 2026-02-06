@@ -99,6 +99,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddHttpClient();
+
 // Add SignalR
 builder.Services.AddSignalR();
 
