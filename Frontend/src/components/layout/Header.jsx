@@ -1,4 +1,5 @@
 import { Bell, Search, Settings, LogOut } from "lucide-react";
+import ConnectionStatus from "../common/ConnectionStatus";
 import "./Header.css";
 
 function Header({ onLogout }) {
@@ -8,6 +9,7 @@ function Header({ onLogout }) {
         <h1>VisionGate</h1>
       </div>
       <div className="header-right">
+        <ConnectionStatus />
         <div className="search-box">
           <Search size={18} />
           <input type="text" placeholder="Quick search..." />
