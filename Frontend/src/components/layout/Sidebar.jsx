@@ -8,6 +8,7 @@ import {
   Wifi,
   ShieldAlert, // Icon Users & Roles
   UserCog,
+  Calendar,
 } from "lucide-react";
 import "./Sidebar.css";
 
@@ -47,6 +48,13 @@ function Sidebar({ user }) {
         >
           <Users size={20} />
           <span>Employees</span> {/* Nhân viên */}
+        </Link>
+        <Link
+          to="/attendance-reports"
+          className={`nav-item ${location.pathname === "/attendance-reports" ? "active" : ""}`}
+        >
+          <Calendar size={20} />
+          <span>Attendance</span>
         </Link>
         <Link
           to="/access-logs"

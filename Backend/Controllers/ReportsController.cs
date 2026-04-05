@@ -66,4 +66,38 @@ public class ReportsController : ControllerBase
             return StatusCode(501, new { message = ex.Message });
         }
     }
+
+    // PUT: api/reports/attendance
+    [HttpPut("attendance")]
+    public async Task<ActionResult<object>> UpdateAttendance([FromBody] UpdateAttendanceRequest request)
+    {
+        try
+        {
+            var result = await _reportService.UpdateAttendanceAsync(request);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            // For production, you might want to log this
+            return StatusCode(500, new { message = "Lỗi khi cập nhật điểm danh: " + ex.Message });
+        }
+    }
+
+    // DELETE: api/reports/attendance
+    [HttpDelete("attendance")]
+    public async Task<ActionResult> DeleteAttendance([FromQuery] int employeeId, [FromQuery] DateOnly date)
+    {
+        try
+        {
+            var deleted = await _reportService.DeleteAttendanceAsync(employeeId, date);
+            if (!deleted)
+                return NotFound(new { message = "Không tìm thấy dữ liệu điểm danh để xóa." });
+                
+            return Ok(new { message = "Đã xóa điểm danh thành công." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Lỗi khi xóa điểm danh: " + ex.Message });
+        }
+    }
 }

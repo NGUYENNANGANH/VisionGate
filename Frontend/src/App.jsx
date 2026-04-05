@@ -7,6 +7,7 @@ import SettingsPage from "./pages/SettingsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import DevicesPage from "./pages/DevicesPage";
 import AccessLogsPage from "./pages/AccessLogsPage";
+import AttendanceReportsPage from "./pages/AttendanceReportsPage";
 import { authService } from "./services/authService";
 import { RoleProtectedRoute } from "./components/auth/RoleProtectedRoute";
 import "./App.css";
@@ -51,6 +52,14 @@ function App() {
           element={
             <ProtectedRoute>
               <AccessLogsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/attendance-reports"
+          element={
+            <ProtectedRoute>
+              <AttendanceReportsPage />
             </ProtectedRoute>
           }
         />

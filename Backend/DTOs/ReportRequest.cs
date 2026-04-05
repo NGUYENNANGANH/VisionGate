@@ -26,3 +26,11 @@ public class ExportExcelRequest
     public int? EmployeeId { get; set; }
     public int? DepartmentId { get; set; }
 }
+
+public class UpdateAttendanceRequest
+{
+    public int EmployeeId { get; set; }
+    public DateOnly Date { get; set; }
+    public TimeSpan? CheckInTime { get; set; }
+    public TimeSpan? CheckOutTime { get; set; }
+}

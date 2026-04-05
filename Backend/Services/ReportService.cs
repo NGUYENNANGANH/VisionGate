@@ -34,23 +34,50 @@ public class ReportService : IReportService
         if (request.DepartmentId.HasValue)
             query = query.Where(c => c.Employee.DepartmentId == request.DepartmentId.Value);
 
+        // Dữ liệu cài đặt ca làm mặc định
+        var startTimeStr = await _context.Settings.Where(s => s.Key == "Shift:StartTime").Select(s => s.Value).FirstOrDefaultAsync() ?? "08:00";
+        var endTimeStr = await _context.Settings.Where(s => s.Key == "Shift:EndTime").Select(s => s.Value).FirstOrDefaultAsync() ?? "17:00";
+        
+        if (!TimeOnly.TryParse(startTimeStr, out var shiftStart)) shiftStart = new TimeOnly(8, 0);
+        if (!TimeOnly.TryParse(endTimeStr, out var shiftEnd)) shiftEnd = new TimeOnly(17, 0);
+
         var checkIns = await query
             .OrderByDescending(c => c.CheckInTime)
             .ToListAsync();
 
         var grouped = checkIns
             .GroupBy(c => new { c.EmployeeId, Date = DateOnly.FromDateTime(c.CheckInTime) })
-            .Select(g => new
+            .Select(g => 
             {
-                EmployeeId = g.Key.EmployeeId,
-                EmployeeName = g.First().Employee.FullName,
-                EmployeeCode = g.First().Employee.EmployeeCode,
-                Department = g.First().Employee.Department?.DepartmentName,
-                Date = g.Key.Date,
-                CheckInTime = g.Min(c => TimeOnly.FromDateTime(c.CheckInTime)),
-                CheckOutTime = g.Max(c => TimeOnly.FromDateTime(c.CheckInTime)),
-                TotalCheckIns = g.Count(),
-                HasViolations = g.Any(c => c.Violations.Any())
+                var inTime = g.Min(c => TimeOnly.FromDateTime(c.CheckInTime));
+                var outTime = g.Max(c => TimeOnly.FromDateTime(c.CheckInTime));
+                
+                // Nếu quyét duy nhất 1 lần, hoặc lần quét sau cách lần quét đầu < 1 phút thì coi như quên Check-Out (giảm từ 5 phút xuống 1 phút để dễ test)
+                bool isMissingCheckOut = g.Count() == 1 || (outTime - inTime).TotalMinutes < 1; 
+
+                int lateMins = inTime > shiftStart ? (int)(inTime - shiftStart).TotalMinutes : 0;
+                int earlyMins = 0;
+                
+                if (!isMissingCheckOut && outTime < shiftEnd)
+                {
+                    earlyMins = (int)(shiftEnd - outTime).TotalMinutes;
+                }
+
+                return new
+                {
+                    EmployeeId = g.Key.EmployeeId,
+                    EmployeeName = g.First().Employee.FullName,
+                    EmployeeCode = g.First().Employee.EmployeeCode,
+                    Department = g.First().Employee.Department?.DepartmentName,
+                    Date = g.Key.Date,
+                    CheckInTime = inTime,
+                    CheckOutTime = isMissingCheckOut ? null as TimeOnly? : outTime,
+                    LateMinutes = lateMins,
+                    EarlyLeaveMinutes = earlyMins,
+                    TotalCheckIns = g.Count(),
+                    HasViolations = g.Any(c => c.Violations.Any()),
+                    Status = isMissingCheckOut ? "Thiếu Check-out" : (lateMins > 0 || earlyMins > 0 ? "Đi muộn/Về sớm" : "Đúng giờ")
+                };
             })
             .OrderByDescending(x => x.Date)
             .ThenBy(x => x.EmployeeName);
@@ -202,5 +229,93 @@ public class ReportService : IReportService
             FromDate = from,
             ToDate = to
         };
+    }
+
+    public async Task<bool> DeleteAttendanceAsync(int employeeId, DateOnly date)
+    {
+        var startOfDay = date.ToDateTime(TimeOnly.MinValue);
+        var endOfDay = date.ToDateTime(TimeOnly.MaxValue);
+
+        var records = await _context.CheckInRecords
+            .Where(c => c.EmployeeId == employeeId && c.CheckInTime >= startOfDay && c.CheckInTime <= endOfDay)
+            .ToListAsync();
+
+        if (!records.Any()) return false;
+
+        _context.CheckInRecords.RemoveRange(records);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<object> UpdateAttendanceAsync(UpdateAttendanceRequest request)
+    {
+        var startOfDay = request.Date.ToDateTime(TimeOnly.MinValue);
+        var endOfDay = request.Date.ToDateTime(TimeOnly.MaxValue);
+
+        var records = await _context.CheckInRecords
+            .Where(c => c.EmployeeId == request.EmployeeId && c.CheckInTime >= startOfDay && c.CheckInTime <= endOfDay)
+            .OrderBy(c => c.CheckInTime)
+            .ToListAsync();
+
+        if (request.CheckInTime == null && request.CheckOutTime == null)
+        {
+            if (records.Any())
+            {
+                _context.CheckInRecords.RemoveRange(records);
+                await _context.SaveChangesAsync();
+            }
+            return new { success = true, action = "deleted" };
+        }
+
+        CheckInRecord firstRecord = records.FirstOrDefault();
+        CheckInRecord lastRecord = records.Count > 1 ? records.LastOrDefault() : null;
+
+        if (request.CheckInTime.HasValue)
+        {
+            var newInTime = request.Date.ToDateTime(TimeOnly.FromTimeSpan(request.CheckInTime.Value));
+            if (firstRecord == null)
+            {
+                firstRecord = new CheckInRecord 
+                { 
+                    EmployeeId = request.EmployeeId, 
+                    CheckInTime = newInTime,
+                    FaceConfidence = 100,
+                    Status = CheckInStatus.Success
+                };
+                _context.CheckInRecords.Add(firstRecord);
+            }
+            else
+            {
+                firstRecord.CheckInTime = newInTime;
+            }
+        }
+
+        if (request.CheckOutTime.HasValue)
+        {
+            var newOutTime = request.Date.ToDateTime(TimeOnly.FromTimeSpan(request.CheckOutTime.Value));
+            if (lastRecord == null)
+            {
+                lastRecord = new CheckInRecord 
+                { 
+                    EmployeeId = request.EmployeeId, 
+                    CheckInTime = newOutTime,
+                    FaceConfidence = 100,
+                    Status = CheckInStatus.Success
+                };
+                _context.CheckInRecords.Add(lastRecord);
+            }
+            else
+            {
+                lastRecord.CheckInTime = newOutTime;
+            }
+        }
+        else if (lastRecord != null)
+        {
+            // if checkout time is null but we have a last record, delete the last record
+            _context.CheckInRecords.Remove(lastRecord);
+        }
+
+        await _context.SaveChangesAsync();
+        return new { success = true, action = "updated" };
     }
 }
