@@ -1,20 +1,30 @@
+"""
+VisionGate Camera Service — InsightFace (RetinaFace + ArcFace)
+"""
 import cv2
 import numpy as np
 import requests
 import time
-from deepface import DeepFace
 import struct
 import base64
+import insightface
+from insightface.app import FaceAnalysis
+from unidecode import unidecode
 
-# ===== CẤU HÌNH =====
 BACKEND_URL = "http://localhost:5212"
+FACE_API_URL = "http://localhost:5000"
 DEVICE_ID = 1
 CHECK_INTERVAL = 3
 CONFIDENCE_THRESHOLD = 0.4
-
+RECOGNITION_INTERVAL = 3
 
 last_checkin_time = {}
 known_employees = []
+
+print("[CameraService] Init InsightFace...")
+app_face = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
+app_face.prepare(ctx_id=0, det_size=(640, 640))
+print("[CameraService] InsightFace is ready!")
 
 def load_employees_from_backend():
     global known_employees
@@ -23,65 +33,42 @@ def load_employees_from_backend():
         if response.status_code == 200:
             employees = response.json()
             known_employees = []
-            
             for emp in employees:
                 face_emb = emp.get('faceEmbedding')
-                
-                # Bỏ qua nếu không có FaceEmbedding
-                if not face_emb:
-                    continue
-                
+                if not face_emb: continue
                 try:
-                    # FaceEmbedding được lưu dạng Base64, không phải HEX
-                    import base64
-                    
-                    # Decode Base64 thành bytes
                     byte_array = base64.b64decode(face_emb)
                     float_count = len(byte_array) // 4
-                    
-                    # Kiểm tra số lượng float (512 cho FaceNet512)
-                    if float_count != 512:
-                        print(f" Warning: Bỏ qua {emp['fullName']}: Vector có {float_count} chiều (cần 512)")
-                        continue
-                    
-                    # Unpack bytes thành float array
+                    if float_count != 512: continue
                     embedding = list(struct.unpack(f'{float_count}f', byte_array))
-                    
                     known_employees.append({
                         'id': emp['employeeId'],
                         'name': emp['fullName'],
-                        'embedding': np.array(embedding)
+                        'embedding': np.array(embedding, dtype=np.float32)
                     })
-                    print(f" Success: Loaded: {emp['fullName']} (ID: {emp['employeeId']}, {float_count} dims)")
-                    
                 except Exception as e:
-                    print(f"Bỏ qua {emp.get('fullName', 'Unknown')}: {e}")
-                    continue
-            
-            print(f"Đã load {len(known_employees)} nhân viên có Face Embedding")
+                    pass
+            print(f"Loaded {len(known_employees)} employees.")
         else:
-            print(f"Không thể tải danh sách nhân viên. Status: {response.status_code}")
+            print(f"Failed to load employees. Status: {response.status_code}")
     except Exception as e:
-        print(f"Lỗi khi load nhân viên: {e}")
+        print(f"Error loading employees: {e}")
 
 def cosine_distance(embedding1, embedding2):
-    return 1 - np.dot(embedding1, embedding2) / (
-        np.linalg.norm(embedding1) * np.linalg.norm(embedding2)
-    )
+    dot_product = np.dot(embedding1, embedding2)
+    norm_product = np.linalg.norm(embedding1) * np.linalg.norm(embedding2)
+    if norm_product == 0: return 1.0
+    return 1 - dot_product / norm_product
 
 def find_matching_employee(face_embedding):
-    if len(known_employees) == 0:
-        return None, 1.0
-    
+    if len(known_employees) == 0: return None, 1.0
     min_distance = float('inf')
     matched_employee = None
-    
     for emp in known_employees:
         distance = cosine_distance(face_embedding, emp['embedding'])
         if distance < min_distance:
             min_distance = distance
             matched_employee = emp
-    
     if min_distance < CONFIDENCE_THRESHOLD:
         return matched_employee, min_distance
     else:
@@ -91,144 +78,102 @@ def send_checkin_to_backend(employee_id, face_image, confidence):
     try:
         _, buffer = cv2.imencode('.jpg', face_image)
         img_base64 = base64.b64encode(buffer).decode('utf-8')
-        
         payload = {
-            "employeeId": employee_id,
+            "employeeId": int(employee_id),
             "deviceId": DEVICE_ID,
-            "checkInImageUrl": f"data:image/jpeg;base64,{img_base64[:100]}...",
-            "faceConfidence": round((1 - confidence) * 100, 2),
+            "checkInImageUrl": f"data:image/jpeg;base64,{img_base64}",
+            "faceConfidence": round(float((1 - confidence) * 100), 2),
             "hasHelmet": True,
             "hasGloves": True,
             "hasSafetyVest": True,
             "hasSafetyBoots": True,
             "hasMask": True,
             "ppeConfidenceScore": 0.85,
-            "detectionData": f"Camera {DEVICE_ID} - Auto Detect"
+            "detectionData": f"Camera {DEVICE_ID} - InsightFace"
         }
-        
-        response = requests.post(
-            f"{BACKEND_URL}/api/checkins/ai-process",
-            json=payload,
-            timeout=10
-        )
-        
+        response = requests.post(f"{BACKEND_URL}/api/checkins/ai-process", json=payload, timeout=10)
         if response.status_code == 200:
-            print(f"Check-in thành công cho Employee #{employee_id}")
+            print(f"Check-in OK for Employee #{employee_id}")
             return True
         else:
-            print(f"Check-in thất bại. Status: {response.status_code}")
+            print(f"Check-in failed. Status: {response.status_code}")
             return False
     except Exception as e:
-        print(f"Lỗi khi gửi check-in: {e}")
+        print(f"Check-in error: {e}")
         return False
+
+def send_frame_to_api(frame):
+    try:
+        _, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+        requests.post(f"{FACE_API_URL}/camera/frame", data=jpeg.tobytes(), headers={"Content-Type": "application/octet-stream"}, timeout=1)
+    except Exception:
+        pass
 
 def can_checkin(employee_id):
     current_time = time.time()
     if employee_id in last_checkin_time:
-        elapsed = current_time - last_checkin_time[employee_id]
-        if elapsed < CHECK_INTERVAL:
+        if current_time - last_checkin_time[employee_id] < CHECK_INTERVAL:
             return False
     return True
 
+def draw_face_info(frame, bbox, label, color):
+    x1, y1, x2, y2 = bbox.astype(int)
+    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+    cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
 def main():
-    print("============================================================")
-    print(" VisionGate Camera Service")
-    print("============================================================")
-    
+    print("VisionGate Camera Service")
     load_employees_from_backend()
-    
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
-        print("Không thể mở camera!")
+        print("Cannot open camera!")
         return
-    
-    print("Camera đã sẵn sàng. Nhấn 'q' để thoát, 'r' để reload danh sách nhân viên.")
-    
-    # Điều chỉnh tham số để phát hiện dễ hơn
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-    
+    print("Camera ready. Press q to quit, r to reload.")
     frame_count = 0
-    last_faces = []  # Lưu vị trí khuôn mặt để vẽ mượt
+    cached_results = []
     
     while True:
         ret, frame = cap.read()
-        if not ret:
-            print("Không đọc được frame từ camera")
-            break
-        
+        if not ret: break
         frame_count += 1
         
-        # LUÔN LUÔN phát hiện và vẽ khung (mỗi frame)
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(
-            gray, 
-            scaleFactor=1.1,  # Dễ dàng hơn
-            minNeighbors=4,   # Giảm từ 5 xuống 4
-            minSize=(50, 50)  # Kích thước tối thiểu
-        )
-        
-        # Vẽ khung cho tất cả khuôn mặt phát hiện được
-        for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
-            cv2.putText(frame, "Detecting...", (x, y-10), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-        
-        # Chỉ nhận diện AI mỗi 10 frame (tối ưu tốc độ)
-        if frame_count % 10 == 0 and len(faces) > 0:
-            x, y, w, h = faces[0]  # Lấy khuôn mặt đầu tiên
-            face_img = frame[y:y+h, x:x+w]
-            
-            try:
-                cv2.imwrite("temp_face.jpg", face_img)
+        if frame_count % RECOGNITION_INTERVAL == 0:
+            faces = app_face.get(frame)
+            cached_results = []
+            for face in faces:
+                embedding = face.embedding
+                bbox = face.bbox
+                matched_emp, distance = find_matching_employee(embedding)
+                if matched_emp:
+                    clean_name = unidecode(matched_emp['name'])
+                    label = f"{clean_name} ({int((1-distance)*100)}%)"
+                    color = (0, 255, 0)
+                    if can_checkin(matched_emp['id']):
+                        print(f"Detected: {clean_name}")
+                        x1, y1, x2, y2 = bbox.astype(int)
+                        face_img = frame[max(0, y1):min(frame.shape[0], y2), max(0, x1):min(frame.shape[1], x2)]
+                        send_checkin_to_backend(matched_emp['id'], face_img, distance)
+                        last_checkin_time[matched_emp['id']] = time.time()
+                else:
+                    label = f"UNKNOWN ({int((1-distance)*100)}%)"
+                    color = (0, 0, 255)
+                cached_results.append({'bbox': bbox, 'label': label, 'color': color})
                 
-                embedding_objs = DeepFace.represent(
-                    img_path="temp_face.jpg",
-                    model_name="Facenet512",
-                    enforce_detection=False,
-                    detector_backend="skip"
-                )
-                
-                if len(embedding_objs) > 0:
-                    face_embedding = np.array(embedding_objs[0]["embedding"])
-                    matched_emp, distance = find_matching_employee(face_embedding)
-                    
-                    if matched_emp:
-                        label = f"{matched_emp['name']} ({int((1-distance)*100)}%)"
-                        color = (0, 255, 0)
-                        
-                        if can_checkin(matched_emp['id']):
-                            print(f"Phát hiện: {matched_emp['name']} (Độ tin cậy: {int((1-distance)*100)}%)")
-                            send_checkin_to_backend(matched_emp['id'], face_img, distance)
-                            last_checkin_time[matched_emp['id']] = time.time()
-                    else:
-                        label = f"UNKNOWN ({int((1-distance)*100)}%)"
-                        color = (0, 0, 255)
-                        print(f"Phát hiện người lạ (Khoảng cách: {distance:.2f})")
-                    
-                    # Vẽ label lên khung
-                    cv2.putText(frame, label, (x, y-10), 
-                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
-                    cv2.rectangle(frame, (x, y), (x+w, y+h), color, 3)
+        for result in cached_results:
+            draw_face_info(frame, result['bbox'], result['label'], result['color'])
             
-            except Exception as e:
-                print(f"Lỗi xử lý khuôn mặt: {e}")
-        
-        # Hiển thị số khuôn mặt phát hiện được
-        cv2.putText(frame, f"Faces: {len(faces)}", (10, 30), 
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-        
+        cv2.putText(frame, f"Faces: {len(cached_results)} | Employees: {len(known_employees)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        if frame_count % 2 == 0: send_frame_to_api(frame)
         cv2.imshow('VisionGate - Camera AI', frame)
-        
         key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            break
+        if key == ord('q'): break
         elif key == ord('r'):
-            print("Đang reload danh sách nhân viên...")
+            print("Reloading employees...")
             load_employees_from_backend()
-    
+            
     cap.release()
     cv2.destroyAllWindows()
-    print("Đã tắt Camera Service")
+    print("Camera Service stopped.")
 
 if __name__ == "__main__":
     main()

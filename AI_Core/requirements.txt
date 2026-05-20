@@ -2,8 +2,10 @@ fastapi
 uvicorn
 python-multipart
 requests
-deepface
-tf-keras
+httpx
+insightface
+onnxruntime
 opencv-python
 numpy
 Pillow
+Unidecode

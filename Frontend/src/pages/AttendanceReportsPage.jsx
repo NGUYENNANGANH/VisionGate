@@ -116,6 +116,34 @@ function AttendanceReportsPage() {
     }
   };
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    try {
+      setExporting(true);
+      const res = await api.post('/reports/export-excel',
+        {
+          reportType: 'attendance',
+          fromDate: filters.dateFrom || null,
+          toDate: filters.dateTo || null
+        },
+        { responseType: 'blob' }
+      );
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'bao-cao-diem-danh.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Lỗi khi xuất Excel: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="app-container">
       <Sidebar user={user} />
@@ -131,9 +159,9 @@ function AttendanceReportsPage() {
                 Tổng hợp thời gian ra/vào và thống kê số phút đi muộn/về sớm. Mọi lượt Check-in/Check-out trong ngày được gộp làm 1 dòng/người.
               </p>
             </div>
-            <button className="btn-export" onClick={() => alert("Tính năng xuất Excel chưa sẵn sàng!")}>
+            <button className="btn-export" onClick={handleExportExcel} disabled={exporting}>
               <Download size={18} />
-              Xuất Excel
+              {exporting ? 'Đang xuất...' : 'Xuất Excel'}
             </button>
           </div>
 

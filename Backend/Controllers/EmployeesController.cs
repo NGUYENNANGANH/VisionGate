@@ -3,8 +3,6 @@ using VisionGate.Models;
 using VisionGate.Services.Interfaces;
 using System.Text.Json;
 using System.Text;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using System.Linq.Expressions;
 
 namespace VisionGate.Controllers;
 
@@ -19,6 +17,36 @@ public class EmployeesController : ControllerBase
     {
         _employeeService = employeeService;
         _httpClientFactory = httpClientFactory;
+    }
+
+    private async Task<byte[]?> GetFaceEmbeddingAsync(string imageUrl)
+    {
+        var client = _httpClientFactory.CreateClient();
+        var pyServiceUrl = "http://127.0.0.1:5000/api/encode";
+        var payload = new { url = imageUrl };
+        var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync(pyServiceUrl, jsonContent);
+        if (response.IsSuccessStatusCode)
+        {
+            var responseString = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(responseString);
+            var root = doc.RootElement;
+            
+            if (root.GetProperty("Success").GetBoolean())
+            {
+                var vectorArray = root.GetProperty("Embedding").EnumerateArray().Select(e => e.GetSingle()).ToArray();
+                var byteArray = new byte[vectorArray.Length * sizeof(float)];
+                Buffer.BlockCopy(vectorArray, 0, byteArray, 0, byteArray.Length);
+                return byteArray;
+            }
+            else
+            {
+                var message = root.GetProperty("Message").GetString();
+                throw new Exception(message);
+            }
+        }
+        throw new Exception($"Không thể kết nối đến AI Service. HTTP {response.StatusCode}");
     }
 
     // GET: api/employees
@@ -49,58 +77,20 @@ public class EmployeesController : ControllerBase
     {
         try
         {
-            var created = await _employeeService.CreateEmployeeAsync(employee);
-            if (!string.IsNullOrEmpty(created.FaceImageUrl))
+            // Kiểm tra ảnh bằng AI TRƯỚC KHI tạo nhân viên vào DB
+            if (!string.IsNullOrEmpty(employee.FaceImageUrl))
             {
                 try
                 {
-                    var client = _httpClientFactory.CreateClient();
-                    var pyServiceUrl = "http://127.0.0.1:5000/api/encode";
-                    
-                    var payload = new {url = created.FaceImageUrl};
-                    var jsonContent = new StringContent(
-                        JsonSerializer.Serialize(payload),
-                        Encoding.UTF8,
-                        "application/json");
-                    var response = await client.PostAsync(pyServiceUrl, jsonContent);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var responseString = await response.Content.ReadAsStringAsync();
-                        using var doc = JsonDocument.Parse(responseString);
-                        var root = doc.RootElement;
-                        if(root.GetProperty("Success").GetBoolean())
-                        {
-                            // lay mang 
-                            var vectorArray = root.GetProperty("Embedding")
-                            .EnumerateArray()
-                            .Select(e => e.GetSingle())
-                            .ToArray(); 
-
-                            // chuyen float sang byte
-                            var byteArray = new byte[vectorArray.Length * sizeof(float)];
-                            Buffer.BlockCopy(vectorArray, 0, byteArray, 0, byteArray.Length);
-                            created.FaceEmbedding = byteArray;
-
-                            // cao nhat FaceEmbedding vao Database
-                            created.FaceEmbedding = byteArray;
-                            await _employeeService.UpdateEmployeeAsync(created.EmployeeId, created);
-
-                            Console.WriteLine("Face embedding updated for employee ID: " + created.EmployeeId);
-                        }
-                        else
-                        {
-                            var message = root.GetProperty("Message").GetString();
-                            Console.WriteLine("Python service error: " + message);
-                            
-                        }
-                   }
-
+                    employee.FaceEmbedding = await GetFaceEmbeddingAsync(employee.FaceImageUrl);
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
-                    Console.WriteLine("Exception while calling Python service: " + ex.Message);
+                    return BadRequest(new { message = $"Ảnh khuôn mặt không hợp lệ: {ex.Message}" });
                 }
             }
+
+            var created = await _employeeService.CreateEmployeeAsync(employee);
             return CreatedAtAction(nameof(GetEmployee), new { id = created.EmployeeId }, created);
         }
         catch (InvalidOperationException ex)
@@ -115,6 +105,35 @@ public class EmployeesController : ControllerBase
     {
         try
         {
+            var existing = await _employeeService.GetEmployeeByIdAsync(id);
+            if (existing == null)
+                return NotFound();
+
+            // Kiểm tra xem user có đổi ảnh không
+            if (employee.FaceImageUrl != existing.FaceImageUrl)
+            {
+                if (!string.IsNullOrEmpty(employee.FaceImageUrl))
+                {
+                    try
+                    {
+                        employee.FaceEmbedding = await GetFaceEmbeddingAsync(employee.FaceImageUrl);
+                    }
+                    catch (Exception ex)
+                    {
+                        return BadRequest(new { message = $"Ảnh khuôn mặt mới không hợp lệ: {ex.Message}" });
+                    }
+                }
+                else
+                {
+                    employee.FaceEmbedding = null;
+                }
+            }
+            else
+            {
+                // URL ảnh không đổi -> giữ nguyên embedding cũ
+                employee.FaceEmbedding = existing.FaceEmbedding;
+            }
+
             var updated = await _employeeService.UpdateEmployeeAsync(id, employee);
             if (!updated)
                 return NotFound();
@@ -147,5 +166,65 @@ public class EmployeesController : ControllerBase
     {
         var checkIns = await _employeeService.GetEmployeeCheckInsAsync(id, from, to);
         return Ok(checkIns);
+    }
+
+    // POST: api/employees/5/re-encode
+    // Force tạo lại embedding từ ảnh hiện tại (dùng khi migrate model)
+    [HttpPost("{id}/re-encode")]
+    public async Task<IActionResult> ReEncodeFace(int id)
+    {
+        var existing = await _employeeService.GetEmployeeByIdAsync(id);
+        if (existing == null)
+            return NotFound();
+
+        if (string.IsNullOrEmpty(existing.FaceImageUrl))
+            return BadRequest(new { message = "Nhân viên chưa có ảnh khuôn mặt." });
+
+        try
+        {
+            existing.FaceEmbedding = await GetFaceEmbeddingAsync(existing.FaceImageUrl);
+            var updated = await _employeeService.UpdateEmployeeAsync(id, existing);
+            if (!updated)
+                return StatusCode(500, new { message = "Không thể cập nhật embedding." });
+
+            return Ok(new { message = $"Re-encode thành công cho nhân viên #{id}.", dim = existing.FaceEmbedding?.Length / sizeof(float) });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = $"Lỗi encode khuôn mặt: {ex.Message}" });
+        }
+    }
+
+    // POST: api/employees/re-encode-all
+    // Force tạo lại embedding cho TẤT CẢ nhân viên
+    [HttpPost("re-encode-all")]
+    public async Task<IActionResult> ReEncodeAll()
+    {
+        var employees = await _employeeService.GetAllEmployeesAsync(null, null);
+        int success = 0, fail = 0;
+        var errors = new List<string>();
+
+        foreach (var emp in employees)
+        {
+            if (string.IsNullOrEmpty(emp.FaceImageUrl))
+            {
+                fail++;
+                continue;
+            }
+
+            try
+            {
+                emp.FaceEmbedding = await GetFaceEmbeddingAsync(emp.FaceImageUrl);
+                await _employeeService.UpdateEmployeeAsync(emp.EmployeeId, emp);
+                success++;
+            }
+            catch (Exception ex)
+            {
+                fail++;
+                errors.Add($"ID {emp.EmployeeId}: {ex.Message}");
+            }
+        }
+
+        return Ok(new { success, fail, errors });
     }
 }

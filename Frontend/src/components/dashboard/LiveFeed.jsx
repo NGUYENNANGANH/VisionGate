@@ -1,39 +1,49 @@
+import { useState } from "react";
 import "./LiveFeed.css";
 
+const STREAM_URL = "http://localhost:5000/camera/stream";
+
 function LiveFeed({ connected }) {
+  const [streamError, setStreamError] = useState(false);
+
+  const isOnline = connected && !streamError;
+
   return (
     <div className="feed-card">
       <div className="card-header">
         <div className="card-title">
-          <span className="live-badge">🔴 LIVE</span>
+          <span className={`live-badge ${isOnline ? '' : 'offline'}`}>
+            {isOnline ? '🔴 LIVE' : '⚫ OFFLINE'}
+          </span>
           <span>Real-time AI Feed</span>
         </div>
         <span className="feed-location">Main Entrance - Cam 01</span>
       </div>
       <div className="feed-content">
         <div className="feed-video">
-          <div className="video-overlay">
-            <div className="detection-box authorized">
-              <span>ID: 4029 ✓</span>
-              <span>AUTHORIZED</span>
-            </div>
-            <div className="detection-box unauthorized">
-              <span>UNRECOGNIZED</span>
-            </div>
-            <div className="system-status">
-              <div className="status-item">
-                <span>SYSTEM STATUS:</span>
-                <span
-                  className={`status-value ${connected ? "optimal" : "warning"}`}
-                >
-                  {connected ? "Object Detection: Optimal" : "Disconnected"}
-                </span>
+          {isOnline ? (
+            <img
+              src={STREAM_URL}
+              alt="Live Camera Feed"
+              className="feed-stream"
+              onError={() => setStreamError(true)}
+            />
+          ) : (
+            <div className="video-overlay">
+              <div className="offline-message">
+                <span className="offline-icon">📷</span>
+                <span>{connected ? 'Camera stream không khả dụng' : 'Camera Offline'}</span>
+                {streamError && (
+                  <button
+                    className="retry-btn"
+                    onClick={() => setStreamError(false)}
+                  >
+                    Thử lại
+                  </button>
+                )}
               </div>
-              <div className="status-item">
-                <span>Processing Latency: 14ms</span>
-              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,3 +1,4 @@
+using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using VisionGate.Data;
 using VisionGate.DTOs;
@@ -160,11 +161,198 @@ public class ReportService : IReportService
 
     public async Task<byte[]> ExportToExcelAsync(ExportExcelRequest request)
     {
-        // TODO: Implement Excel export using EPPlus or ClosedXML
-        // For now, return empty byte array
-        await Task.CompletedTask;
-        
-        throw new NotImplementedException("Excel export feature requires EPPlus or ClosedXML package");
+        using var workbook = new XLWorkbook();
+
+        if (request.ReportType?.ToLower() == "attendance")
+        {
+            await BuildAttendanceSheet(workbook, request);
+        }
+        else if (request.ReportType?.ToLower() == "violations")
+        {
+            await BuildViolationSheet(workbook, request);
+        }
+        else
+        {
+            throw new ArgumentException($"Loại báo cáo không hợp lệ: {request.ReportType}");
+        }
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    private async Task BuildAttendanceSheet(XLWorkbook workbook, ExportExcelRequest request)
+    {
+        var query = _context.CheckInRecords
+            .Include(c => c.Employee)
+            .ThenInclude(e => e.Department)
+            .AsQueryable();
+
+        if (request.FromDate.HasValue)
+            query = query.Where(c => c.CheckInTime >= request.FromDate.Value);
+
+        if (request.ToDate.HasValue)
+            query = query.Where(c => c.CheckInTime <= request.ToDate.Value);
+
+        if (request.EmployeeId.HasValue)
+            query = query.Where(c => c.EmployeeId == request.EmployeeId.Value);
+
+        if (request.DepartmentId.HasValue)
+            query = query.Where(c => c.Employee.DepartmentId == request.DepartmentId.Value);
+
+        // Dữ liệu cài đặt ca làm mặc định
+        var startTimeStr = await _context.Settings.Where(s => s.Key == "Shift:StartTime").Select(s => s.Value).FirstOrDefaultAsync() ?? "08:00";
+        var endTimeStr = await _context.Settings.Where(s => s.Key == "Shift:EndTime").Select(s => s.Value).FirstOrDefaultAsync() ?? "17:00";
+
+        if (!TimeOnly.TryParse(startTimeStr, out var shiftStart)) shiftStart = new TimeOnly(8, 0);
+        if (!TimeOnly.TryParse(endTimeStr, out var shiftEnd)) shiftEnd = new TimeOnly(17, 0);
+
+        var checkIns = await query
+            .OrderByDescending(c => c.CheckInTime)
+            .ToListAsync();
+
+        var grouped = checkIns
+            .GroupBy(c => new { c.EmployeeId, Date = DateOnly.FromDateTime(c.CheckInTime) })
+            .Select(g =>
+            {
+                var inTime = g.Min(c => TimeOnly.FromDateTime(c.CheckInTime));
+                var outTime = g.Max(c => TimeOnly.FromDateTime(c.CheckInTime));
+                bool isMissingCheckOut = g.Count() == 1 || (outTime - inTime).TotalMinutes < 1;
+
+                int lateMins = inTime > shiftStart ? (int)(inTime - shiftStart).TotalMinutes : 0;
+                int earlyMins = 0;
+                if (!isMissingCheckOut && outTime < shiftEnd)
+                {
+                    earlyMins = (int)(shiftEnd - outTime).TotalMinutes;
+                }
+
+                return new
+                {
+                    EmployeeCode = g.First().Employee.EmployeeCode,
+                    EmployeeName = g.First().Employee.FullName,
+                    Department = g.First().Employee.Department?.DepartmentName,
+                    Date = g.Key.Date,
+                    CheckInTime = inTime,
+                    CheckOutTime = isMissingCheckOut ? null as TimeOnly? : outTime,
+                    LateMinutes = lateMins,
+                    EarlyLeaveMinutes = earlyMins,
+                    Status = isMissingCheckOut ? "Thiếu Check-out" : (lateMins > 0 || earlyMins > 0 ? "Đi muộn/Về sớm" : "Đúng giờ")
+                };
+            })
+            .OrderByDescending(x => x.Date)
+            .ThenBy(x => x.EmployeeName)
+            .ToList();
+
+        var ws = workbook.Worksheets.Add("Báo cáo điểm danh");
+
+        // Headers
+        var headers = new[] { "STT", "Mã NV", "Họ tên", "Phòng ban", "Ngày", "Giờ vào", "Giờ ra", "Đi muộn (phút)", "Về sớm (phút)", "Trạng thái" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            ws.Cell(1, i + 1).Value = headers[i];
+        }
+        StyleHeaderRow(ws, 1, headers.Length);
+
+        // Data rows
+        for (int i = 0; i < grouped.Count; i++)
+        {
+            var row = i + 2;
+            var item = grouped[i];
+            ws.Cell(row, 1).Value = i + 1;
+            ws.Cell(row, 2).Value = item.EmployeeCode;
+            ws.Cell(row, 3).Value = item.EmployeeName;
+            ws.Cell(row, 4).Value = item.Department ?? "";
+            ws.Cell(row, 5).Value = item.Date.ToString("dd/MM/yyyy");
+            ws.Cell(row, 6).Value = item.CheckInTime.ToString("HH:mm");
+            ws.Cell(row, 7).Value = item.CheckOutTime?.ToString("HH:mm") ?? "";
+            ws.Cell(row, 8).Value = item.LateMinutes;
+            ws.Cell(row, 9).Value = item.EarlyLeaveMinutes;
+            ws.Cell(row, 10).Value = item.Status;
+
+            // Thin borders for data rows
+            ws.Range(row, 1, row, headers.Length).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            ws.Range(row, 1, row, headers.Length).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        }
+
+        ws.Columns().AdjustToContents();
+    }
+
+    private async Task BuildViolationSheet(XLWorkbook workbook, ExportExcelRequest request)
+    {
+        var query = _context.Violations
+            .Include(v => v.Employee)
+            .ThenInclude(e => e.Department)
+            .AsQueryable();
+
+        if (request.FromDate.HasValue)
+            query = query.Where(v => v.CreatedAt >= request.FromDate.Value);
+
+        if (request.ToDate.HasValue)
+            query = query.Where(v => v.CreatedAt <= request.ToDate.Value);
+
+        if (request.EmployeeId.HasValue)
+            query = query.Where(v => v.EmployeeId == request.EmployeeId.Value);
+
+        if (request.DepartmentId.HasValue)
+            query = query.Where(v => v.Employee.DepartmentId == request.DepartmentId.Value);
+
+        var violations = await query
+            .OrderByDescending(v => v.CreatedAt)
+            .Select(v => new
+            {
+                EmployeeCode = v.Employee.EmployeeCode,
+                EmployeeName = v.Employee.FullName,
+                Department = v.Employee.Department != null ? v.Employee.Department.DepartmentName : "",
+                v.ViolationType,
+                v.Severity,
+                v.Description,
+                v.IsResolved,
+                v.CreatedAt
+            })
+            .ToListAsync();
+
+        var ws = workbook.Worksheets.Add("Báo cáo vi phạm");
+
+        // Headers
+        var headers = new[] { "STT", "Mã NV", "Họ tên", "Phòng ban", "Loại vi phạm", "Mức độ", "Mô tả", "Đã xử lý", "Ngày tạo" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            ws.Cell(1, i + 1).Value = headers[i];
+        }
+        StyleHeaderRow(ws, 1, headers.Length);
+
+        // Data rows
+        for (int i = 0; i < violations.Count; i++)
+        {
+            var row = i + 2;
+            var item = violations[i];
+            ws.Cell(row, 1).Value = i + 1;
+            ws.Cell(row, 2).Value = item.EmployeeCode;
+            ws.Cell(row, 3).Value = item.EmployeeName;
+            ws.Cell(row, 4).Value = item.Department;
+            ws.Cell(row, 5).Value = item.ViolationType.ToString();
+            ws.Cell(row, 6).Value = item.Severity.ToString();
+            ws.Cell(row, 7).Value = item.Description;
+            ws.Cell(row, 8).Value = item.IsResolved ? "Đã xử lý" : "Chưa xử lý";
+            ws.Cell(row, 9).Value = item.CreatedAt.ToString("dd/MM/yyyy HH:mm");
+
+            // Thin borders for data rows
+            ws.Range(row, 1, row, headers.Length).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            ws.Range(row, 1, row, headers.Length).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        }
+
+        ws.Columns().AdjustToContents();
+    }
+
+    private static void StyleHeaderRow(IXLWorksheet ws, int row, int colCount)
+    {
+        var headerRange = ws.Range(row, 1, row, colCount);
+        headerRange.Style.Font.Bold = true;
+        headerRange.Style.Font.FontColor = XLColor.White;
+        headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#4472C4");
+        headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
     }
 
     public async Task<object> GetEmployeeHistoryAsync(int employeeId, DateTime? from, DateTime? to)
