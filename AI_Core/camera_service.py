@@ -41,7 +41,7 @@ def load_employees_from_backend():
                     
                     # Kiểm tra số lượng float (512 cho FaceNet512)
                     if float_count != 512:
-                        print(f"⚠️ Bỏ qua {emp['fullName']}: Vector có {float_count} chiều (cần 512)")
+                        print(f" Warning: Bỏ qua {emp['fullName']}: Vector có {float_count} chiều (cần 512)")
                         continue
                     
                     # Unpack bytes thành float array
@@ -52,7 +52,7 @@ def load_employees_from_backend():
                         'name': emp['fullName'],
                         'embedding': np.array(embedding)
                     })
-                    print(f"✅ Loaded: {emp['fullName']} (ID: {emp['employeeId']}, {float_count} dims)")
+                    print(f" Success: Loaded: {emp['fullName']} (ID: {emp['employeeId']}, {float_count} dims)")
                     
                 except Exception as e:
                     print(f"Bỏ qua {emp.get('fullName', 'Unknown')}: {e}")
@@ -131,9 +131,9 @@ def can_checkin(employee_id):
     return True
 
 def main():
-    print("=" * 60)
-    print("🎥 VisionGate Camera Service")
-    print("=" * 60)
+    print("============================================================")
+    print(" VisionGate Camera Service")
+    print("============================================================")
     
     load_employees_from_backend()
     
