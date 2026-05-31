@@ -146,22 +146,6 @@ function EmployeeModal({ employee, departments, onClose, onSave }) {
               </div>
 
               <div className="form-group">
-                <label>Phòng ban</label>
-                <select
-                  name="departmentId"
-                  value={formData.departmentId || ""}
-                  onChange={handleChange}
-                >
-                  <option value="">Chọn phòng ban</option>
-                  {departments.map((dept) => (
-                    <option key={dept.departmentId} value={dept.departmentId}>
-                      {dept.departmentName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
                 <label>Chức vụ</label>
                 <input
                   type="text"
