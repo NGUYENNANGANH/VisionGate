@@ -29,7 +29,7 @@ print("[CameraService] InsightFace is ready!")
 def load_employees_from_backend():
     global known_employees
     try:
-        response = requests.get(f"{BACKEND_URL}/api/employees", timeout=5)
+        response = requests.get(f"{BACKEND_URL}/api/employees?isActive=true", timeout=5)
         if response.status_code == 200:
             employees = response.json()
             known_employees = []
