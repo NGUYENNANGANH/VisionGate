@@ -45,13 +45,7 @@ function DevicesPage() {
 
   const handleAdd = () => {
     setSelectedDevice(null);
-    setFormData({
-      deviceCode: "",
-      deviceName: "",
-      location: "",
-      ipAddress: "",
-      isOnline: true,
-    });
+    setFormData({ deviceCode: "", deviceName: "", location: "", ipAddress: "", isOnline: true });
     setShowModal(true);
   };
 
@@ -69,7 +63,6 @@ function DevicesPage() {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa thiết bị này?")) return;
-
     try {
       await api.delete(`/devices/${id}`);
       loadDevices();
@@ -83,10 +76,7 @@ function DevicesPage() {
     e.preventDefault();
     try {
       if (selectedDevice) {
-        await api.put(`/devices/${selectedDevice.deviceId}`, {
-          ...formData,
-          deviceId: selectedDevice.deviceId,
-        });
+        await api.put(`/devices/${selectedDevice.deviceId}`, { ...formData, deviceId: selectedDevice.deviceId });
       } else {
         await api.post("/devices", formData);
       }
@@ -101,166 +91,153 @@ function DevicesPage() {
   if (!user) return null;
 
   return (
-    <div className="devices-container">
-      <Sidebar user={user} />
-
-      <main className="main-content">
+    <div className="dashboard-container">
+      <Sidebar user={user} onLogout={handleLogout} />
+      <div className="main">
         <Header onLogout={handleLogout} />
-
-        <div className="page-header">
-          <div>
-            <h1>Quản lý thiết bị</h1>
-            <p className="page-description">
-              Cấu hình camera AI và thiết bị kiểm soát ra vào
-            </p>
-          </div>
-          <button className="btn-primary" onClick={handleAdd}>
-            <Plus size={20} />
-            Thêm thiết bị mới
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="loading">Đang tải...</div>
-        ) : (
-          <div className="devices-grid">
-            {devices.map((device) => (
-              <div key={device.deviceId} className="device-card">
-                <div className="device-header">
-                  <div className="device-status">
-                    {device.isOnline ? (
-                      <Wifi size={20} className="icon-online" />
-                    ) : (
-                      <WifiOff size={20} className="icon-offline" />
-                    )}
-                    <span
-                      className={`status-text ${device.isOnline ? "online" : "offline"}`}
-                    >
-                      {device.isOnline ? "Online" : "Offline"}
-                    </span>
-                  </div>
-                  <div className="device-actions">
-                    <button
-                      className="btn-icon btn-edit"
-                      onClick={() => handleEdit(device)}
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      className="btn-icon btn-delete"
-                      onClick={() => handleDelete(device.deviceId)}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="device-body">
-                  <h3>{device.deviceName}</h3>
-                  <p className="device-code">#{device.deviceCode}</p>
-                  <div className="device-info">
-                    <MapPin size={16} />
-                    <span>{device.location}</span>
-                  </div>
-                  {device.ipAddress && (
-                    <div className="device-ip">IP: {device.ipAddress}</div>
-                  )}
-                </div>
+        <div className="page">
+          <div className="page-inner fade-in">
+            <div className="page-head">
+              <div>
+                <h1 className="page-title">Quản lý thiết bị</h1>
+                <p className="page-sub">Cấu hình camera AI và thiết bị kiểm soát ra vào</p>
               </div>
-            ))}
-          </div>
-        )}
-
-        {showModal && (
-          <div className="modal-overlay" onClick={() => setShowModal(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>
-                  {selectedDevice ? "Cập nhật thiết bị" : "Thêm thiết bị mới"}
-                </h2>
-              </div>
-              <form onSubmit={handleSave}>
-                <div className="modal-body">
-                  <div className="form-group">
-                    <label>Mã thiết bị *</label>
-                    <input
-                      type="text"
-                      value={formData.deviceCode}
-                      onChange={(e) =>
-                        setFormData({ ...formData, deviceCode: e.target.value })
-                      }
-                      required
-                      placeholder="CAM-001"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Tên thiết bị *</label>
-                    <input
-                      type="text"
-                      value={formData.deviceName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, deviceName: e.target.value })
-                      }
-                      required
-                      placeholder="Camera cổng chính"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Vị trí *</label>
-                    <input
-                      type="text"
-                      value={formData.location}
-                      onChange={(e) =>
-                        setFormData({ ...formData, location: e.target.value })
-                      }
-                      required
-                      placeholder="Cổng vào chính - Tầng 1"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Địa chỉ IP</label>
-                    <input
-                      type="text"
-                      value={formData.ipAddress}
-                      onChange={(e) =>
-                        setFormData({ ...formData, ipAddress: e.target.value })
-                      }
-                      placeholder="192.168.1.100"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={formData.isOnline}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            isOnline: e.target.checked,
-                          })
-                        }
-                      />
-                      <span>Thiết bị hoạt động</span>
-                    </label>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setShowModal(false)}
-                  >
-                    Hủy
-                  </button>
-                  <button type="submit" className="btn-primary">
-                    {selectedDevice ? "Cập nhật" : "Thêm thiết bị"}
-                  </button>
-                </div>
-              </form>
+              <button className="btn btn-primary" onClick={handleAdd}>
+                <Plus size={20} /> Thêm thiết bị mới
+              </button>
             </div>
+
+            {loading ? (
+              <div style={{ padding: 40, textAlign: "center", color: "var(--ink-3)" }}>Đang tải...</div>
+            ) : (
+              <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))" }}>
+                {devices.map((d) => (
+                  <div key={d.deviceId} className="card" style={{ overflow: "hidden", padding: 0 }}>
+                    {/* Camera preview */}
+                    <div style={{ position: "relative" }}>
+                      {d.isOnline ? (
+                        <div style={{ height: 168, background: "linear-gradient(135deg,#1a2230,#0e1420)", borderRadius: "18px 18px 0 0", display: "grid", placeItems: "center" }}>
+                          <Wifi size={32} style={{ color: "rgba(14,163,158,.5)" }} />
+                        </div>
+                      ) : (
+                        <div style={{ height: 168, background: "linear-gradient(135deg,#1a2230,#0e1420)", display: "grid", placeItems: "center", position: "relative", borderRadius: "18px 18px 0 0" }}>
+                          <div style={{ position: "absolute", inset: 0, backgroundImage: "repeating-linear-gradient(45deg,rgba(255,255,255,.018) 0 14px,transparent 14px 28px)", borderRadius: "18px 18px 0 0" }} />
+                          <div style={{ textAlign: "center", color: "rgba(255,255,255,.35)", position: "relative" }}>
+                            <WifiOff size={34} style={{ color: "rgba(226,59,84,.6)" }} />
+                            <div style={{ fontSize: 12.5, fontWeight: 700, marginTop: 8, letterSpacing: ".04em" }}>KHÔNG CÓ TÍN HIỆU</div>
+                          </div>
+                        </div>
+                      )}
+                      {/* Status badge */}
+                      <div style={{ position: "absolute", top: 12, left: 12 }}>
+                        <span className={`badge ${d.isOnline ? "badge-green" : "badge-red"}`}
+                          style={{ background: d.isOnline ? "rgba(21,163,90,.92)" : "rgba(226,59,84,.92)", color: "#fff" }}>
+                          <span className="bdot" style={{ background: "#fff" }} />
+                          {d.isOnline ? "ONLINE" : "OFFLINE"}
+                        </span>
+                      </div>
+                      {/* Edit/Delete overlay */}
+                      <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 6 }}>
+                        <button style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,0,0,.4)", border: "1px solid rgba(255,255,255,.12)", color: "#fff", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", cursor: "pointer" }}
+                          onClick={() => handleEdit(d)}><Edit size={15} /></button>
+                        <button style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,0,0,.4)", border: "1px solid rgba(255,255,255,.12)", color: "#fff", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", cursor: "pointer" }}
+                          onClick={() => handleDelete(d.deviceId)}><Trash2 size={15} /></button>
+                      </div>
+                    </div>
+                    {/* Card body */}
+                    <div style={{ padding: 18 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--primary-soft)", color: "var(--primary)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                          {d.isOnline ? <Wifi size={18} /> : <WifiOff size={18} />}
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 16 }}>{d.deviceName}</div>
+                          <span className="chip-mono">#{d.deviceCode}</span>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: 15, display: "grid", gap: 9 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: "var(--ink-2)" }}>
+                          <MapPin size={15} style={{ color: "var(--ink-3)" }} />{d.location}
+                        </div>
+                        {d.ipAddress && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: "var(--ink-2)" }}>
+                            <span className="mono" style={{ fontSize: 12.5 }}>IP {d.ipAddress}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add new card */}
+                <button className="card"
+                  style={{ padding: 24, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, border: "2px dashed var(--border)", background: "transparent", minHeight: 280, color: "var(--ink-3)", transition: "border .15s,color .15s", width: "100%", cursor: "pointer" }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.color = "var(--primary-700)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--ink-3)"; }}
+                  onClick={handleAdd}>
+                  <div style={{ width: 48, height: 48, borderRadius: 14, background: "var(--surface-3)", display: "grid", placeItems: "center" }}>
+                    <Plus size={24} />
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: 14.5 }}>Thêm camera mới</div>
+                  <div style={{ fontSize: 12.5, textAlign: "center", maxWidth: 200 }}>Kết nối camera AI để bắt đầu giám sát ra vào</div>
+                </button>
+              </div>
+            )}
+
+            {/* Modal */}
+            {showModal && (
+              <div style={{ position: "fixed", inset: 0, background: "rgba(13,21,38,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+                onClick={() => setShowModal(false)}>
+                <div style={{ background: "var(--surface)", padding: "32px 28px", borderRadius: "var(--r-lg)", boxShadow: "var(--sh-lg)", width: 460, maxWidth: "calc(100vw - 32px)" }}
+                  onClick={(e) => e.stopPropagation()}>
+                  <h2 style={{ margin: "0 0 24px", fontFamily: "var(--display)", fontSize: 20, color: "var(--ink)" }}>
+                    {selectedDevice ? "Cập nhật thiết bị" : "Thêm thiết bị mới"}
+                  </h2>
+                  <form onSubmit={handleSave}>
+                    <div className="field">
+                      <label>MÃ THIẾT BỊ *</label>
+                      <input className="input" type="text" value={formData.deviceCode}
+                        onChange={(e) => setFormData({ ...formData, deviceCode: e.target.value })}
+                        required placeholder="CAM-001" />
+                    </div>
+                    <div className="field">
+                      <label>TÊN THIẾT BỊ *</label>
+                      <input className="input" type="text" value={formData.deviceName}
+                        onChange={(e) => setFormData({ ...formData, deviceName: e.target.value })}
+                        required placeholder="Camera cổng chính" />
+                    </div>
+                    <div className="field">
+                      <label>VỊ TRÍ *</label>
+                      <input className="input" type="text" value={formData.location}
+                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                        required placeholder="Cổng vào chính - Tầng 1" />
+                    </div>
+                    <div className="field">
+                      <label>ĐỊA CHỈ IP</label>
+                      <input className="input" type="text" value={formData.ipAddress}
+                        onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
+                        placeholder="192.168.1.100" />
+                    </div>
+                    <div className="field">
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                        <input type="checkbox" checked={formData.isOnline}
+                          onChange={(e) => setFormData({ ...formData, isOnline: e.target.checked })} />
+                        <span>Thiết bị hoạt động</span>
+                      </label>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+                      <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)}>Hủy</button>
+                      <button type="submit" className="btn btn-primary">
+                        {selectedDevice ? "Cập nhật" : "Thêm thiết bị"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </main>
+        </div>
+      </div>
     </div>
   );
 }
