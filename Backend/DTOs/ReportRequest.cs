@@ -25,6 +25,8 @@ public class ExportExcelRequest
     public DateTime? ToDate { get; set; }
     public int? EmployeeId { get; set; }
     public int? DepartmentId { get; set; }
+    public string? SearchText { get; set; }
+    public string? Status { get; set; }
 }
 
 public class UpdateAttendanceRequest
