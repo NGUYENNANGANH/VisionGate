@@ -1,30 +1,39 @@
-import { Bell, Search, Settings, LogOut } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import { Icon } from "../ui/Icon";
 import ConnectionStatus from "../common/ConnectionStatus";
 import "./Header.css";
 
+const CRUMBS = {
+  "/dashboard": "Dashboard",
+  "/employees": "Quản lý nhân viên",
+  "/attendance-reports": "Báo cáo điểm danh",
+  "/access-logs": "Lịch sử",
+  "/devices": "Quản lý thiết bị",
+  "/admin/users": "Tài khoản hệ thống",
+  "/settings": "Cài đặt hệ thống",
+};
+
 function Header({ onLogout }) {
+  const location = useLocation();
+  const crumb = CRUMBS[location.pathname] || "VisionGate";
+
   return (
-    <header className="dashboard-header">
-      <div className="header-left">
-        <h1>VisionGate</h1>
+    <header className="topbar">
+      <div className="crumb">
+        <span>VisionGate</span>
+        <Icon name="chevright" size={14} />
+        <b>{crumb}</b>
       </div>
-      <div className="header-right">
-        <ConnectionStatus />
-        <div className="search-box">
-          <Search size={18} />
-          <input type="text" placeholder="Quick search..." />
-        </div>
-        <button className="icon-btn">
-          <Bell size={20} />
-          <span className="badge">3</span>
-        </button>
-        <button className="icon-btn">
-          <Settings size={20} />
-        </button>
-        <button className="icon-btn" onClick={onLogout}>
-          <LogOut size={20} />
-        </button>
-      </div>
+
+      <div style={{ flex: 1 }} />
+
+      <ConnectionStatus />
+
+      <button className="icon-btn" title="Thông báo">
+        <Icon name="bell" size={18} />
+        <span className="dot" />
+      </button>
+
     </header>
   );
 }

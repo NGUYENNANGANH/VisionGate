@@ -1,120 +1,84 @@
-import { Link, useLocation } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Users,
-  FileText,
-  Settings,
-  HelpCircle,
-  Wifi,
-  ShieldAlert, // Icon Users & Roles
-  UserCog,
-  Calendar,
-} from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Icon, ShieldLogo } from "../ui/Icon";
 import "./Sidebar.css";
 
-// Helper check quyền
-const isSystemAdmin = (role) => {
-  return role === 0 || role === "SuperAdmin";
-};
+const isSystemAdmin = (role) => role === 0 || role === "SuperAdmin";
 
-function Sidebar({ user }) {
+const NAV = [
+  { to: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { to: "/employees", label: "Nhân viên", icon: "users" },
+  { to: "/attendance-reports", label: "Chấm công", icon: "calendar" },
+  { to: "/access-logs", label: "Lịch sử", icon: "logs" },
+  { to: "/devices", label: "Thiết bị", icon: "devices" },
+];
+
+const NAV_ADMIN = [
+  { to: "/admin/users", label: "Tài khoản hệ thống", icon: "shield_user", adminOnly: true },
+  { to: "/settings", label: "Cài đặt", icon: "settings" },
+];
+
+const getInitials = (name = "") =>
+  name.trim().split(/\s+/).slice(-2).map(w => w[0]).join("").toUpperCase();
+
+const roleName = (role) =>
+  role === 0 || role === "SuperAdmin" ? "Super Admin" :
+  role === 1 || role === "Admin" ? "HR Admin" : "User";
+
+function Sidebar({ user, onLogout }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const initials = getInitials(user?.fullName || "Admin");
+  const role = roleName(user?.role);
 
   return (
     <aside className="sidebar">
-      {/* ...Header... */}
-      <div className="sidebar-header">
-        <div className="logo">
-          <div className="logo-icon">🛡️</div>
-          <div>
-            <div className="logo-title">VisionGate</div>
-            <div className="logo-subtitle">Enterprise Security</div>
-          </div>
+      <div className="brand">
+        <div className="brand-mark"><ShieldLogo size={22} /></div>
+        <div>
+          <div className="brand-name">VisionGate</div>
+          <div className="brand-sub">Enterprise Security</div>
         </div>
       </div>
 
       <nav className="sidebar-nav">
-        <Link
-          to="/dashboard"
-          className={`nav-item ${location.pathname === "/dashboard" ? "active" : ""}`}
-        >
-          <LayoutDashboard size={20} />
-          <span>Dashboard</span>
-        </Link>
-
-        <Link
-          to="/employees"
-          className={`nav-item ${location.pathname === "/employees" ? "active" : ""}`}
-        >
-          <Users size={20} />
-          <span>Employees</span> {/* Nhân viên */}
-        </Link>
-        <Link
-          to="/attendance-reports"
-          className={`nav-item ${location.pathname === "/attendance-reports" ? "active" : ""}`}
-        >
-          <Calendar size={20} />
-          <span>Attendance</span>
-        </Link>
-        <Link
-          to="/access-logs"
-          className={`nav-item ${location.pathname === "/access-logs" ? "active" : ""}`}
-        >
-          <FileText size={20} />
-          <span>Access Logs</span>
-        </Link>
-        <Link
-          to="/devices"
-          className={`nav-item ${location.pathname === "/devices" ? "active" : ""}`}
-        >
-          <Wifi size={20} />
-          <span>Devices</span>
-        </Link>
-        {isSystemAdmin(user?.role) && (
-          <Link
-            to="/admin/users"
-            className={`nav-item ${location.pathname === "/admin/users" ? "active" : ""}`}
-          >
-            <UserCog size={20} />
-            {/* Dùng icon UserCog hợp hơn ShieldAlert cho quản lý User */}
-            <span>System Users</span>
+        {NAV.map(n => (
+          <Link key={n.to} to={n.to} className={`nav-item ${location.pathname === n.to ? "active" : ""}`}>
+            <Icon name={n.icon} size={18} />
+            <span>{n.label}</span>
+            {n.badge && <span className="nav-badge">1</span>}
           </Link>
-        )}
+        ))}
+
+        <div className="nav-label">Quản trị</div>
+
+        {NAV_ADMIN.map(n => {
+          if (n.adminOnly && !isSystemAdmin(user?.role)) return null;
+          return (
+            <Link key={n.to} to={n.to} className={`nav-item ${location.pathname === n.to ? "active" : ""}`}>
+              <Icon name={n.icon} size={18} />
+              <span>{n.label}</span>
+            </Link>
+          );
+        })}
       </nav>
 
-      <div className="sidebar-section">
-        <div className="section-title">ADMINISTRATION</div>
-
-        {/* Đã chuyển Users & Roles lên trên, ở đây chỉ còn Settings */}
-        <Link
-          to="/settings"
-          className={`nav-item ${location.pathname === "/settings" ? "active" : ""}`}
-        >
-          <Settings size={20} />
-          <span>Settings</span>
-        </Link>
-        <a href="#" className="nav-item">
-          <HelpCircle size={20} />
-          <span>Support</span>
-        </a>
-      </div>
-
-      {/* ...Footer... */}
       <div className="sidebar-footer">
-        <div className="user-profile">
-          <div className="user-avatar">
-            {user?.fullName?.substring(0, 2).toUpperCase() || "AD"}
-          </div>
+        <div className="user-card" onClick={() => navigate('/profile')} style={{ cursor: "pointer" }} title="Tài khoản của tôi">
+          <div className="av">{initials}</div>
           <div className="user-info">
-            <div className="user-name">{user?.fullName || "Admin"}</div>
-            <div className="user-role">
-              {typeof user?.role === "number"
-                ? user.role === 0
-                  ? "Super Admin"
-                  : "User"
-                : user?.role}
-            </div>
+            <div className="nm">{user?.fullName || "Administrator"}</div>
+            <div className="rl">{role}</div>
           </div>
+          <button 
+            onClick={(e) => { e.stopPropagation(); if (onLogout) onLogout(); }} 
+            title="Đăng xuất" 
+            style={{ 
+              background: 'transparent', border: 'none', padding: '6px', margin: '-6px -2px -6px 0',
+              color: 'var(--side-ink-3)', cursor: 'pointer'
+            }}
+          >
+            <Icon name="logout" size={16} />
+          </button>
         </div>
       </div>
     </aside>
