@@ -27,7 +27,7 @@ public class ReportService : IReportService
             query = query.Where(c => c.CheckInTime >= request.FromDate.Value);
 
         if (request.ToDate.HasValue)
-            query = query.Where(c => c.CheckInTime <= request.ToDate.Value);
+            query = query.Where(c => c.CheckInTime < request.ToDate.Value.AddDays(1));
 
         if (request.EmployeeId.HasValue)
             query = query.Where(c => c.EmployeeId == request.EmployeeId.Value);
@@ -105,7 +105,7 @@ public class ReportService : IReportService
             query = query.Where(v => v.CreatedAt >= request.FromDate.Value);
 
         if (request.ToDate.HasValue)
-            query = query.Where(v => v.CreatedAt <= request.ToDate.Value);
+            query = query.Where(v => v.CreatedAt < request.ToDate.Value.AddDays(1));
 
         if (request.EmployeeId.HasValue)
             query = query.Where(v => v.EmployeeId == request.EmployeeId.Value);
@@ -171,6 +171,10 @@ public class ReportService : IReportService
         {
             await BuildViolationSheet(workbook, request);
         }
+        else if (request.ReportType?.ToLower() == "access-logs")
+        {
+            await BuildAccessLogsSheet(workbook, request);
+        }
         else
         {
             throw new ArgumentException($"Loại báo cáo không hợp lệ: {request.ReportType}");
@@ -192,7 +196,7 @@ public class ReportService : IReportService
             query = query.Where(c => c.CheckInTime >= request.FromDate.Value);
 
         if (request.ToDate.HasValue)
-            query = query.Where(c => c.CheckInTime <= request.ToDate.Value);
+            query = query.Where(c => c.CheckInTime < request.ToDate.Value.AddDays(1));
 
         if (request.EmployeeId.HasValue)
             query = query.Where(c => c.EmployeeId == request.EmployeeId.Value);
@@ -243,6 +247,16 @@ public class ReportService : IReportService
             .ThenBy(x => x.EmployeeName)
             .ToList();
 
+        if (!string.IsNullOrEmpty(request.SearchText))
+        {
+            var search = request.SearchText.ToLower();
+            grouped = grouped.Where(x => 
+                (x.EmployeeName != null && x.EmployeeName.ToLower().Contains(search)) ||
+                (x.EmployeeCode != null && x.EmployeeCode.ToLower().Contains(search)) ||
+                (x.Department != null && x.Department.ToLower().Contains(search))
+            ).ToList();
+        }
+
         var ws = workbook.Worksheets.Add("Báo cáo điểm danh");
 
         // Headers
@@ -288,7 +302,7 @@ public class ReportService : IReportService
             query = query.Where(v => v.CreatedAt >= request.FromDate.Value);
 
         if (request.ToDate.HasValue)
-            query = query.Where(v => v.CreatedAt <= request.ToDate.Value);
+            query = query.Where(v => v.CreatedAt < request.ToDate.Value.AddDays(1));
 
         if (request.EmployeeId.HasValue)
             query = query.Where(v => v.EmployeeId == request.EmployeeId.Value);
@@ -342,6 +356,118 @@ public class ReportService : IReportService
         }
 
         ws.Columns().AdjustToContents();
+    }
+
+    private async Task BuildAccessLogsSheet(XLWorkbook workbook, ExportExcelRequest request)
+    {
+        var checkInsQuery = _context.CheckInRecords
+            .Include(c => c.Employee)
+            .Include(c => c.Device)
+            .AsQueryable();
+
+        var violationsQuery = _context.Violations
+            .Include(v => v.Employee)
+            .Include(v => v.CheckInRecord)
+                .ThenInclude(c => c.Device)
+            .Where(v => !v.IsResolved)
+            .AsQueryable();
+
+        if (request.FromDate.HasValue)
+        {
+            checkInsQuery = checkInsQuery.Where(c => c.CheckInTime >= request.FromDate.Value);
+            // violations on the frontend for access logs aren't filtered by date, but let's filter if requested
+            violationsQuery = violationsQuery.Where(v => v.CreatedAt >= request.FromDate.Value);
+        }
+
+        if (request.ToDate.HasValue)
+        {
+            var endDate = request.ToDate.Value.AddDays(1);
+            checkInsQuery = checkInsQuery.Where(c => c.CheckInTime < endDate);
+            violationsQuery = violationsQuery.Where(v => v.CreatedAt < endDate);
+        }
+
+        var checkIns = await checkInsQuery.ToListAsync();
+        var violations = await violationsQuery.ToListAsync();
+
+        var logs = new List<AccessLogExportDto>();
+
+        foreach (var item in checkIns)
+        {
+            var statusStr = item.Status == CheckInStatus.Success || (int)item.Status == 0 ? "ĐIỂM DANH" : (item.Status == CheckInStatus.Warning || (int)item.Status == 2 ? "CẢNH BÁO" : "THẤT BẠI");
+            logs.Add(new AccessLogExportDto {
+                Time = item.CheckInTime,
+                EmployeeName = item.Employee?.FullName ?? "Khách lạ",
+                EmployeeCode = item.Employee?.EmployeeCode ?? "",
+                Location = item.Device?.Location ?? "Unknown",
+                Status = statusStr
+            });
+        }
+
+        foreach (var item in violations)
+        {
+            var statusStr = (int)item.ViolationType == 5 ? "TRÁI PHÉP" : "VI PHẠM";
+            logs.Add(new AccessLogExportDto {
+                Time = item.CreatedAt,
+                EmployeeName = item.Employee?.FullName ?? "Khách lạ",
+                EmployeeCode = item.Employee?.EmployeeCode ?? "",
+                Location = item.CheckInRecord?.Device?.Location ?? "Unknown",
+                Status = statusStr
+            });
+        }
+
+        if (!string.IsNullOrEmpty(request.SearchText))
+        {
+            var search = request.SearchText.ToLower();
+            logs = logs.Where(l => 
+                (l.EmployeeName != null && l.EmployeeName.ToLower().Contains(search)) ||
+                (l.EmployeeCode != null && l.EmployeeCode.ToLower().Contains(search)) ||
+                (l.Location != null && l.Location.ToLower().Contains(search))
+            ).ToList();
+        }
+
+        if (!string.IsNullOrEmpty(request.Status))
+        {
+            logs = logs.Where(l => l.Status == request.Status).ToList();
+        }
+
+        var sortedLogs = logs.OrderByDescending(l => l.Time).ToList();
+
+        var ws = workbook.Worksheets.Add("Lịch sử và Vi phạm");
+
+        // Headers
+        var headers = new[] { "STT", "Thời gian", "Mã NV", "Họ tên", "Vị trí", "Trạng thái" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            ws.Cell(1, i + 1).Value = headers[i];
+        }
+        StyleHeaderRow(ws, 1, headers.Length);
+
+        // Data rows
+        for (int i = 0; i < sortedLogs.Count; i++)
+        {
+            var row = i + 2;
+            var item = sortedLogs[i];
+            ws.Cell(row, 1).Value = i + 1;
+            ws.Cell(row, 2).Value = item.Time.ToString("dd/MM/yyyy HH:mm:ss");
+            ws.Cell(row, 3).Value = item.EmployeeCode;
+            ws.Cell(row, 4).Value = item.EmployeeName;
+            ws.Cell(row, 5).Value = item.Location;
+            ws.Cell(row, 6).Value = item.Status;
+
+            ws.Range(row, 1, row, headers.Length).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            ws.Range(row, 1, row, headers.Length).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        }
+
+        ws.Columns().AdjustToContents();
+    }
+
+    private class AccessLogExportDto
+    {
+        public DateTime Time { get; set; }
+        public string EmployeeName { get; set; }
+        public string EmployeeCode { get; set; }
+        public string Location { get; set; }
+        public string Status { get; set; }
     }
 
     private static void StyleHeaderRow(IXLWorksheet ws, int row, int colCount)
