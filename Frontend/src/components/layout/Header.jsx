@@ -10,7 +10,7 @@ const CRUMBS = {
   "/access-logs": "Lịch sử",
   "/devices": "Quản lý thiết bị",
   "/admin/users": "Tài khoản hệ thống",
-  "/settings": "Cài đặt hệ thống",
+  "/settings": "Cấu hình hệ thống",
 };
 
 function Header({ onLogout }) {
