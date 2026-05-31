@@ -1,9 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import DashboardPage from "./pages/DashboardPage";
 import EmployeesPage from "./pages/EmployeesPage";
 import SettingsPage from "./pages/SettingsPage";
+import ProfilePage from "./pages/ProfilePage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import DevicesPage from "./pages/DevicesPage";
 import AccessLogsPage from "./pages/AccessLogsPage";
@@ -20,6 +22,7 @@ function ProtectedRoute({ children }) {
 function App() {
   return (
     <BrowserRouter>
+      <Toaster position="top-right" />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -42,8 +45,16 @@ function App() {
         <Route
           path="/settings"
           element={
-            <ProtectedRoute>
+            <RoleProtectedRoute allowedRoles={[0, "SuperAdmin"]}>
               <SettingsPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
             </ProtectedRoute>
           }
         />
