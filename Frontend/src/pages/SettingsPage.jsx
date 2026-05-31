@@ -1,324 +1,128 @@
 import { useState, useEffect } from "react";
-import { User, Shield, Server, Bell, Key, Clock, Save, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService";
 import api from "../services/api";
-import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/layout/Sidebar";
 import Header from "../components/layout/Header";
+import { Icon } from "../components/ui/Icon";
 import "./SettingsPage.css";
 
-// Placeholder Components
-const ProfileSettings = ({ user }) => (
-  <div className="settings-section">
-    <h3>Thông tin cá nhân</h3>
-    <div className="form-group">
-      <label>Họ và tên</label>
-      <input
-        type="text"
-        defaultValue={user.fullName}
-        disabled
-        className="form-input"
-      />
-    </div>
-    <div className="form-group">
-      <label>Email</label>
-      <input
-        type="email"
-        defaultValue={user.email}
-        disabled
-        className="form-input"
-      />
-    </div>
-    <div className="form-group">
-      <label>Vai trò</label>
-      <input
-        type="text"
-        defaultValue={user.role}
-        disabled
-        className="form-input"
-      />
-    </div>
-  </div>
-);
-
-// ...existing imports...
-
-const SecuritySettings = () => {
-  const [passwords, setPasswords] = useState({ current: "", new: "" });
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ text: "", type: "" });
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    if (!passwords.current || !passwords.new) {
-      setMessage({ text: "Vui lòng nhập đầy đủ thông tin", type: "error" });
-      return;
-    }
-
-    setLoading(true);
-    setMessage({ text: "", type: "" }); // Clear message
-
-    try {
-      await authService.changePassword(passwords.current, passwords.new);
-      setMessage({ text: "Đổi mật khẩu thành công!", type: "success" });
-      setPasswords({ current: "", new: "" });
-    } catch (error) {
-      console.error(error);
-      setMessage({
-        text:
-          error.response?.data?.message ||
-          "Mật khẩu hiện tại không đúng hoặc lỗi hệ thống",
-        type: "error",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="settings-section">
-      <h3>Bảo mật & Mật khẩu</h3>
-      {message.text && (
-        <div
-          className={`alert ${message.type === "error" ? "alert-danger" : "alert-success"}`}
-          style={{
-            padding: "10px",
-            borderRadius: "6px",
-            marginBottom: "16px",
-            background: message.type === "error" ? "#fee2e2" : "#dcfce7",
-            color: message.type === "error" ? "#dc2626" : "#16a34a",
-          }}
-        >
-          {message.text}
-        </div>
-      )}
-      <form onSubmit={handleChangePassword}>
-        <div className="form-group">
-          <label>Mật khẩu hiện tại</label>
-          <input
-            type="password"
-            value={passwords.current}
-            onChange={(e) =>
-              setPasswords({ ...passwords, current: e.target.value })
-            }
-            placeholder="••••••••"
-            className="form-input"
-          />
-        </div>
-        <div className="form-group">
-          <label>Mật khẩu mới</label>
-          <input
-            type="password"
-            value={passwords.new}
-            onChange={(e) =>
-              setPasswords({ ...passwords, new: e.target.value })
-            }
-            placeholder="••••••••"
-            className="form-input"
-          />
-        </div>
-        <button
-          className="btn-primary"
-          style={{ marginTop: "16px" }}
-          disabled={loading}
-        >
-          {loading ? "Đang xử lý..." : "Đổi mật khẩu"}
-        </button>
-      </form>
-    </div>
-  );
-};
-
-const ShiftSettings = () => {
+/* ── Tab: Cấu hình ca làm ── */
+function ShiftTab() {
   const [shiftStart, setShiftStart] = useState("08:00");
   const [shiftEnd, setShiftEnd] = useState("17:00");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ text: "", type: "" });
+  const [msg, setMsg] = useState({ text: "", ok: true });
 
   useEffect(() => {
-    loadShiftSettings();
-  }, []);
-
-  const loadShiftSettings = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get("/settings");
-      const settings = res.data;
-      const start = settings.find((s) => s.key === "Shift:StartTime");
-      const end = settings.find((s) => s.key === "Shift:EndTime");
+    api.get("/settings").then(res => {
+      const start = res.data.find(x => x.key === "Shift:StartTime");
+      const end = res.data.find(x => x.key === "Shift:EndTime");
       if (start) setShiftStart(start.value);
       if (end) setShiftEnd(end.value);
-    } catch (err) {
-      console.error("Failed to load shift settings:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
 
   const handleSave = async (e) => {
     e.preventDefault();
-    setSaving(true);
-    setMessage({ text: "", type: "" });
-
+    setSaving(true); setMsg({ text: "", ok: true });
+    const save = async (key, value, desc) => {
+      try { await api.put(`/settings/${key}`, { value }); }
+      catch (err) {
+        if (err.response?.status === 404) await api.post("/settings", { key, value, description: desc });
+        else throw err;
+      }
+    };
     try {
-      // Try to update existing or create new settings
-      const saveKey = async (key, value) => {
-        try {
-          await api.put(`/settings/${key}`, { value });
-        } catch (err) {
-          if (err.response?.status === 404) {
-            await api.post("/settings", { key, value, description: key === "Shift:StartTime" ? "Giờ bắt đầu ca làm" : "Giờ kết thúc ca làm" });
-          } else {
-            throw err;
-          }
-        }
-      };
-
-      await saveKey("Shift:StartTime", shiftStart);
-      await saveKey("Shift:EndTime", shiftEnd);
-      setMessage({ text: "Lưu cấu hình ca làm thành công!", type: "success" });
-    } catch (err) {
-      console.error(err);
-      setMessage({ text: "Lỗi khi lưu cấu hình. Vui lòng thử lại.", type: "error" });
-    } finally {
-      setSaving(false);
-    }
+      await save("Shift:StartTime", shiftStart, "Giờ bắt đầu ca làm");
+      await save("Shift:EndTime", shiftEnd, "Giờ kết thúc ca làm");
+      setMsg({ text: "Lưu cấu hình ca làm thành công!", ok: true });
+    } catch { setMsg({ text: "Lỗi khi lưu cấu hình. Vui lòng thử lại.", ok: false }); }
+    finally { setSaving(false); }
   };
 
-  if (loading) return <div className="settings-section"><p>Đang tải cấu hình...</p></div>;
+  if (loading) return <div className="card settings-card" style={{ color: "var(--ink-3)" }}>Đang tải cấu hình...</div>;
 
   return (
-    <div className="settings-section">
-      <h3><Clock size={20} style={{ verticalAlign: "middle", marginRight: 8 }} />Cấu hình Ca làm việc (Shift Setup)</h3>
-      <p style={{ color: "#6b7280", marginBottom: "1.2rem", fontSize: "0.9rem" }}>
-        Cấu hình giờ bắt đầu và kết thúc ca làm. Hệ thống sẽ dùng thông tin này để tính toán <strong>Đi muộn</strong> và <strong>Về sớm</strong> trong báo cáo chấm công.
+    <div className="card settings-card">
+      <h3 style={{ fontFamily: "var(--display)", fontSize: 18, fontWeight: 700, margin: "0 0 4px" }}>Cấu hình ca làm việc</h3>
+      <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 24px" }}>
+        Hệ thống dùng thông tin này để tính <strong>Đi muộn</strong> và <strong>Về sớm</strong> trong báo cáo chấm công.
       </p>
 
-      {message.text && (
-        <div style={{
-          padding: "10px 14px",
-          borderRadius: "6px",
-          marginBottom: "16px",
-          background: message.type === "error" ? "#fee2e2" : "#dcfce7",
-          color: message.type === "error" ? "#dc2626" : "#16a34a",
-          display: "flex",
-          alignItems: "center",
-          gap: "8px"
-        }}>
-          {message.type === "success" && <CheckCircle size={16} />}
-          {message.text}
-        </div>
+      {msg.text && (
+        <div className={msg.ok ? "alert-success" : "alert-danger"} style={{ marginBottom: 20 }}>{msg.text}</div>
       )}
 
       <form onSubmit={handleSave}>
-        <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
-          <div className="form-group" style={{ flex: "1", minWidth: "200px" }}>
-            <label>🟢 Giờ bắt đầu ca (Check-in)</label>
-            <input
-              type="time"
-              value={shiftStart}
-              onChange={(e) => setShiftStart(e.target.value)}
-              className="form-input"
-              style={{ fontSize: "1.1rem", padding: "10px 14px" }}
-            />
-            <small style={{ color: "#9ca3af" }}>Nhân viên đến sau giờ này sẽ bị tính <b>Đi muộn</b></small>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 20 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, marginBottom: 8, color: "var(--ink-2)" }}>
+              <span style={{ width: 8, height: 8, borderRadius: 99, background: "var(--green)", display: "inline-block" }} />
+              Giờ bắt đầu ca (Check-in)
+            </div>
+            <div style={{ position: "relative" }}>
+              <Icon name="clock" size={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)" }} />
+              <input className="input" style={{ paddingLeft: 40 }} type="time" value={shiftStart} onChange={e => setShiftStart(e.target.value)} />
+            </div>
+            <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 6 }}>Nhân viên đến sau giờ này bị tính Đi muộn</div>
           </div>
-          <div className="form-group" style={{ flex: "1", minWidth: "200px" }}>
-            <label>🔴 Giờ kết thúc ca (Check-out)</label>
-            <input
-              type="time"
-              value={shiftEnd}
-              onChange={(e) => setShiftEnd(e.target.value)}
-              className="form-input"
-              style={{ fontSize: "1.1rem", padding: "10px 14px" }}
-            />
-            <small style={{ color: "#9ca3af" }}>Nhân viên về trước giờ này sẽ bị tính <b>Về sớm</b></small>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, marginBottom: 8, color: "var(--ink-2)" }}>
+              <span style={{ width: 8, height: 8, borderRadius: 99, background: "var(--red)", display: "inline-block" }} />
+              Giờ kết thúc ca (Check-out)
+            </div>
+            <div style={{ position: "relative" }}>
+              <Icon name="clock" size={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)" }} />
+              <input className="input" style={{ paddingLeft: 40 }} type="time" value={shiftEnd} onChange={e => setShiftEnd(e.target.value)} />
+            </div>
+            <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 6 }}>Nhân viên về trước giờ này bị tính Về sớm</div>
           </div>
         </div>
 
-        <div style={{
-          marginTop: "20px",
-          padding: "14px 18px",
-          background: "#f0f9ff",
-          borderRadius: "8px",
-          border: "1px solid #bae6fd",
-          fontSize: "0.88rem",
-          color: "#0369a1"
-        }}>
-          <strong>ℹ️ Lưu ý:</strong> Mỗi lần nhân viên quét mặt sẽ tạo 1 bản ghi gốc (Raw Log). Khi xuất báo cáo, hệ thống tự động lấy <b>lần quét đầu tiên</b> làm Check-in và <b>lần quét cuối cùng</b> làm Check-out cho mỗi người trong ngày.
+        <div style={{ display: "flex", gap: 12, padding: "14px 16px", borderRadius: 12, background: "var(--blue-soft)", border: "1px solid rgba(47,107,240,.18)", marginBottom: 22 }}>
+          <Icon name="logs" size={18} style={{ color: "var(--blue)", flexShrink: 0, marginTop: 1 }} />
+          <div style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.6 }}>
+            Mỗi lần nhân viên quét mặt tạo 1 bản ghi gốc. Báo cáo tự lấy <strong>lần quét đầu tiên</strong> làm Check-in và <strong>lần quét cuối cùng</strong> làm Check-out cho mỗi người trong ngày.
+          </div>
         </div>
 
-        <button
-          className="btn-primary"
-          style={{ marginTop: "20px", display: "flex", alignItems: "center", gap: "8px" }}
-          disabled={saving}
-        >
-          <Save size={16} />
+        <button className="btn btn-primary" type="submit" disabled={saving}>
+          <Icon name="save" size={16} />
           {saving ? "Đang lưu..." : "Lưu cấu hình"}
         </button>
       </form>
     </div>
   );
-};
+}
 
 function SettingsPage() {
   const [user] = useState(() => authService.getUser());
-  const [activeTab, setActiveTab] = useState("profile");
   const navigate = useNavigate();
-
-  const handleLogout = () => {
-    authService.logout();
-    navigate("/login");
-  };
-
+  const handleLogout = () => { authService.logout(); navigate("/login"); };
   if (!user) return null;
 
   return (
-    <div className="settings-container">
-      <Sidebar user={user} />
-
-      <main className="settings-content">
+    <div className="dashboard-container">
+      <Sidebar user={user} onLogout={handleLogout} />
+      <div className="main">
         <Header onLogout={handleLogout} />
+        <div className="page">
+          <div className="page-inner fade-in">
+            <div className="page-head">
+              <div>
+                <h1 className="page-title">Cấu hình hệ thống</h1>
+                <p className="page-sub">Thiết lập các tham số hoạt động của toàn hệ thống</p>
+              </div>
+            </div>
 
-        <div className="page-header">
-          <div>
-            <h1>Cài đặt hệ thống</h1>
-            <p className="page-description">
-              Quản lý tài khoản và cấu hình ứng dụng
-            </p>
+            <div>
+              <ShiftTab />
+            </div>
           </div>
         </div>
-
-        <div className="settings-tabs">
-          <button
-            className={`tab-btn ${activeTab === "profile" ? "active" : ""}`}
-            onClick={() => setActiveTab("profile")}
-          >
-            <User size={18} /> Thông tin cá nhân
-          </button>
-          <button
-            className={`tab-btn ${activeTab === "security" ? "active" : ""}`}
-            onClick={() => setActiveTab("security")}
-          >
-            <Key size={18} /> Bảo mật
-          </button>
-          {user.role === "0" || user.role === "SuperAdmin" ? (
-            <button
-              className={`tab-btn ${activeTab === "system" ? "active" : ""}`}
-              onClick={() => setActiveTab("system")}
-            >
-              <Server size={18} /> Cấu hình hệ thống
-            </button>
-          ) : null}
-        </div>
-
-        <div className="settings-body">
-          {activeTab === "profile" && <ProfileSettings user={user} />}
-          {activeTab === "security" && <SecuritySettings />}
-          {activeTab === "system" && <ShiftSettings />}
-        </div>
-      </main>
+      </div>
     </div>
   );
 }
