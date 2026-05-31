@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Download, Search, Filter, Clock, Edit, Trash2 } from "lucide-react";
+import { Download, Search, Clock, Edit, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 import { authService } from "../services/authService";
 import api from "../services/api";
 import Sidebar from "../components/layout/Sidebar";
@@ -28,7 +29,7 @@ function AttendanceReportsPage() {
 
       const response = await api.get(`/reports/attendance?${params}`);
       let data = response.data.data || [];
-      
+
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
         data = data.filter(
@@ -38,7 +39,7 @@ function AttendanceReportsPage() {
             log.department?.toLowerCase().includes(searchLower)
         );
       }
-      
+
       setReports(data);
     } catch (err) {
       setError("Không thể tải dữ liệu báo cáo chấm công.");
@@ -60,10 +61,10 @@ function AttendanceReportsPage() {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
-  const getStatusBadge = (status) => {
-    if (status === "On Time" || status === "Đúng giờ") return "status-on-time";
-    if (status === "Missing Check-out" || status === "Thiếu Check-out") return "status-missing";
-    return "status-late";
+  const getStatusBadgeClass = (status) => {
+    if (status === "On Time" || status === "Đúng giờ") return "badge badge-green";
+    if (status === "Missing Check-out" || status === "Thiếu Check-out") return "badge badge-amber";
+    return "badge badge-red";
   };
 
   const [editModal, setEditModal] = useState({ isOpen: false, data: null });
@@ -84,10 +85,10 @@ function AttendanceReportsPage() {
     if (window.confirm(`Bạn có chắc muốn xóa dữ liệu điểm danh của ${report.employeeName} ngày ${report.date}?\nLưu ý: Hành động này sẽ xóa toàn bộ nhật ký quét mặt gốc của nhân viên này trong ngày hôm đó.`)) {
       try {
         await api.delete(`/reports/attendance?employeeId=${report.employeeId}&date=${report.date}`);
-        alert("Xóa thành công!");
+        toast.success("Xóa thành công!");
         loadReports();
       } catch (err) {
-        alert("Lỗi khi xóa: " + (err.response?.data?.message || err.message));
+        toast.error("Lỗi khi xóa: " + (err.response?.data?.message || err.message));
       }
     }
   };
@@ -95,24 +96,21 @@ function AttendanceReportsPage() {
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     try {
-      // Create request payload
       const payload = {
         employeeId: editModal.data.employeeId,
         date: editModal.data.date,
         checkInTime: editModal.data.checkInTime || null,
         checkOutTime: editModal.data.checkOutTime || null
       };
-      
-      // If passing just hours/mins, ensure it format is standard TimeSpan-like string
       if (payload.checkInTime && payload.checkInTime.length === 5) payload.checkInTime += ":00";
       if (payload.checkOutTime && payload.checkOutTime.length === 5) payload.checkOutTime += ":00";
 
       await api.put(`/reports/attendance`, payload);
-      alert("Cập nhật thành công!");
+      toast.success("Cập nhật thành công!");
       setEditModal({ isOpen: false, data: null });
       loadReports();
     } catch (err) {
-      alert("Lỗi khi cập nhật: " + (err.response?.data?.message || err.message));
+      toast.error("Lỗi khi cập nhật: " + (err.response?.data?.message || err.message));
     }
   };
 
@@ -125,7 +123,8 @@ function AttendanceReportsPage() {
         {
           reportType: 'attendance',
           fromDate: filters.dateFrom || null,
-          toDate: filters.dateTo || null
+          toDate: filters.dateTo || null,
+          searchText: filters.search || null
         },
         { responseType: 'blob' }
       );
@@ -138,127 +137,137 @@ function AttendanceReportsPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      alert('Lỗi khi xuất Excel: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi khi xuất Excel: ' + (err.response?.data?.message || err.message));
     } finally {
       setExporting(false);
     }
   };
 
   return (
-    <div className="app-container">
-      <Sidebar user={user} />
-      <div className="main-content">
-        <Header user={user} onLogout={handleLogout} />
+    <div className="dashboard-container">
+      <Sidebar user={user} onLogout={handleLogout} />
+      <div className="main">
+        <Header onLogout={handleLogout} />
 
-        <div className="page-content">
-          <div className="page-header">
-            <div>
-              <div className="breadcrumb">Trang chủ / Báo cáo điểm danh</div>
-              <h1>Báo Cáo Điểm Danh (Daily FILO)</h1>
-              <p className="page-description">
-                Tổng hợp thời gian ra/vào và thống kê số phút đi muộn/về sớm. Mọi lượt Check-in/Check-out trong ngày được gộp làm 1 dòng/người.
-              </p>
+        <div className="page">
+          <div className="page-inner fade-in">
+            <div className="page-head">
+              <div>
+                <h1 className="page-title">Báo cáo điểm danh</h1>
+                <p className="page-sub">
+                  Tổng hợp thời gian ra/vào và thống kê số phút đi muộn/về sớm. Mọi lượt Check-in/Check-out trong ngày được gộp làm 1 dòng/người.
+                </p>
+              </div>
+              <button className="btn btn-green" onClick={handleExportExcel} disabled={exporting}>
+                <Download size={16} />
+                {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+              </button>
             </div>
-            <button className="btn-export" onClick={handleExportExcel} disabled={exporting}>
-              <Download size={18} />
-              {exporting ? 'Đang xuất...' : 'Xuất Excel'}
-            </button>
-          </div>
 
-          <div className="filters-section">
-            <div className="log-filter-group">
-              <label>KHOẢNG NGÀY</label>
-              <div className="date-range-inputs">
-                <input
-                  type="date"
-                  value={filters.dateFrom}
-                  onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
-                  className="filter-input"
-                />
-                <span>đến</span>
-                <input
-                  type="date"
-                  value={filters.dateTo}
-                  onChange={(e) => handleFilterChange("dateTo", e.target.value)}
-                  className="filter-input"
-                />
+            {/* Filters */}
+            <div className="card filter-section">
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
+                <div className="field" style={{ marginBottom: 0 }}>
+                  <label>KHOẢNG NGÀY</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <input
+                      type="date"
+                      className="input"
+                      style={{ width: 160 }}
+                      value={filters.dateFrom}
+                      onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
+                    />
+                    <span style={{ color: "var(--ink-3)", fontSize: 13 }}>đến</span>
+                    <input
+                      type="date"
+                      className="input"
+                      style={{ width: 160 }}
+                      value={filters.dateTo}
+                      onChange={(e) => handleFilterChange("dateTo", e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="field" style={{ marginBottom: 0, flex: 1, minWidth: 220 }}>
+                  <label>TÌM NHÂN VIÊN</label>
+                  <div className="search" style={{ width: "100%" }}>
+                    <Search size={15} style={{ color: "var(--ink-3)", flexShrink: 0 }} />
+                    <input
+                      type="text"
+                      placeholder="Tên, mã NV hoặc phòng ban"
+                      value={filters.search}
+                      onChange={(e) => handleFilterChange("search", e.target.value)}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="log-filter-group">
-              <label>TÌM NHÂN VIÊN</label>
-              <div className="search-input">
-                <Search size={18} />
-                <input
-                  type="text"
-                  placeholder="Tên, mã NV hoặc phòng ban"
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange("search", e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="logs-table-container">
+            {/* Table */}
             {loading ? (
-              <div className="loading-state">Đang tải...</div>
+              <div className="tbl-wrap" style={{ padding: 40, textAlign: "center", color: "var(--ink-3)" }}>Đang tải...</div>
             ) : error ? (
-              <div className="error-state">{error}</div>
+              <div className="tbl-wrap" style={{ padding: 40, textAlign: "center", color: "var(--red)" }}>{error}</div>
             ) : (
-              <table className="logs-table">
-                <thead>
-                  <tr>
-                    <th>NGÀY</th>
-                    <th>ID / MÃ NV</th>
-                    <th>LẦN QUÉT ĐẦU (CHECK-IN)</th>
-                    <th>LẦN QUÉT CUỐI (CHECK-OUT)</th>
-                    <th>ĐI MUỘN</th>
-                    <th>VỀ SỚM</th>
-                    <th>TRẠNG THÁI</th>
-                    <th>THAO TÁC</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {reports.length === 0 ? (
+              <div className="tbl-wrap">
+                <table className="tbl">
+                  <thead>
                     <tr>
-                      <td colSpan="8" className="empty-state">Không có bản ghi nào</td>
+                      <th>NGÀY</th>
+                      <th>ID / MÃ NV</th>
+                      <th>LẦN QUÉT ĐẦU (CHECK-IN)</th>
+                      <th>LẦN QUÉT CUỐI (CHECK-OUT)</th>
+                      <th>ĐI MUỘN</th>
+                      <th>VỀ SỚM</th>
+                      <th>TRẠNG THÁI</th>
+                      <th></th>
                     </tr>
-                  ) : (
-                    reports.map((report, idx) => (
-                      <tr key={idx}>
-                        <td className="time-cell">{report.date}</td>
-                        <td>
-                          <div className="employee-name">{report.employeeName}</div>
-                          <div className="employee-id">{report.employeeCode}</div>
-                        </td>
-                        <td><Clock style={{marginRight: '6px', verticalAlign: 'middle'}} size={14} />{report.checkInTime}</td>
-                        <td>{report.checkOutTime ? <span><Clock style={{marginRight: '6px', verticalAlign: 'middle'}} size={14} />{report.checkOutTime}</span> : <span style={{color: '#9ca3af'}}>-</span>}</td>
-                        <td style={{ color: report.lateMinutes > 0 ? '#ef4444' : 'inherit' }}>
-                          {report.lateMinutes > 0 ? `${report.lateMinutes} phút` : '-'}
-                        </td>
-                        <td style={{ color: report.earlyLeaveMinutes > 0 ? '#f59e0b' : 'inherit' }}>
-                          {report.earlyLeaveMinutes > 0 ? `${report.earlyLeaveMinutes} phút` : '-'}
-                        </td>
-                        <td>
-                          <span className={`status-badge ${getStatusBadge(report.status)}`}>
-                            {report.status}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button onClick={() => handleEdit(report)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3b82f6' }} title="Sửa">
-                              <Edit size={16} />
-                            </button>
-                            <button onClick={() => handleDelete(report)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }} title="Xóa">
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
+                  </thead>
+                  <tbody>
+                    {reports.length === 0 ? (
+                      <tr>
+                        <td colSpan="8" style={{ textAlign: "center", padding: "32px", color: "var(--ink-3)" }}>Không có bản ghi nào</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      reports.map((report, idx) => (
+                        <tr key={idx}>
+                          <td className="mono" style={{ fontSize: 13, color: "var(--ink-2)" }}>{report.date}</td>
+                          <td>
+                            <div style={{ fontWeight: 600, fontSize: 14, color: "var(--ink)" }}>{report.employeeName}</div>
+                            <div className="mono" style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>{report.employeeCode}</div>
+                          </td>
+                          <td className="mono" style={{ fontSize: 13, color: "var(--ink-2)" }}>
+                            {report.checkInTime
+                              ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Clock size={13} />{report.checkInTime}</span>
+                              : <span style={{ color: "var(--ink-4)" }}>—</span>}
+                          </td>
+                          <td className="mono" style={{ fontSize: 13, color: "var(--ink-2)" }}>
+                            {report.checkOutTime
+                              ? <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Clock size={13} />{report.checkOutTime}</span>
+                              : <span style={{ color: "var(--ink-4)" }}>—</span>}
+                          </td>
+                          <td className="mono" style={{ fontSize: 13, color: report.lateMinutes > 0 ? "var(--red)" : "var(--ink-3)" }}>
+                            {report.lateMinutes > 0 ? `${report.lateMinutes} phút` : "—"}
+                          </td>
+                          <td className="mono" style={{ fontSize: 13, color: report.earlyLeaveMinutes > 0 ? "var(--amber)" : "var(--ink-3)" }}>
+                            {report.earlyLeaveMinutes > 0 ? `${report.earlyLeaveMinutes} phút` : "—"}
+                          </td>
+                          <td>
+                            <span className={getStatusBadgeClass(report.status)}>
+                              <span className="bdot" />{report.status}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="row-act">
+                              <button className="act-btn" onClick={() => handleEdit(report)} title="Sửa"><Edit size={15} /></button>
+                              <button className="act-btn danger" onClick={() => handleDelete(report)} title="Xóa"><Trash2 size={15} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
@@ -266,46 +275,37 @@ function AttendanceReportsPage() {
 
       {/* Edit Modal */}
       {editModal.isOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', padding: '24px', borderRadius: '8px', width: '400px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-            <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '1.2rem', color: '#111827' }}>Sửa giờ điểm danh</h3>
-            <p style={{ color: '#6b7280', fontSize: '0.9rem', marginBottom: '16px' }}>
-              Ngày: <strong>{editModal.data.date}</strong>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(13,21,38,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+          onClick={() => setEditModal({ isOpen: false, data: null })}>
+          <div style={{ background: "var(--surface)", padding: "32px 28px", borderRadius: "var(--r-lg)", boxShadow: "var(--sh-lg)", width: 420, maxWidth: "calc(100vw - 32px)" }}
+            onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0, marginBottom: 6, fontFamily: "var(--display)", fontSize: 18, color: "var(--ink)" }}>Sửa giờ điểm danh</h3>
+            <p style={{ color: "var(--ink-3)", fontSize: 13, marginBottom: 24 }}>
+              Ngày: <strong style={{ color: "var(--ink-2)" }}>{editModal.data.date}</strong>
             </p>
             <form onSubmit={handleSaveEdit}>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem' }}>Check-in (Giờ vào)</label>
-                <input 
-                  type="time" 
-                  step="1"
-                  value={editModal.data.checkInTime} 
-                  onChange={e => setEditModal({...editModal, data: {...editModal.data, checkInTime: e.target.value}})} 
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '4px' }}
+              <div className="field">
+                <label>CHECK-IN (GIỜ VÀO)</label>
+                <input type="time" step="1" className="input"
+                  value={editModal.data.checkInTime}
+                  onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, checkInTime: e.target.value } })}
                 />
               </div>
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, fontSize: '0.9rem' }}>Check-out (Giờ ra)</label>
-                <input 
-                  type="time" 
-                  step="1"
-                  value={editModal.data.checkOutTime} 
-                  onChange={e => setEditModal({...editModal, data: {...editModal.data, checkOutTime: e.target.value}})} 
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '4px' }}
+              <div className="field">
+                <label>CHECK-OUT (GIỜ RA)</label>
+                <input type="time" step="1" className="input"
+                  value={editModal.data.checkOutTime}
+                  onChange={e => setEditModal({ ...editModal, data: { ...editModal.data, checkOutTime: e.target.value } })}
                 />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                <button type="button" onClick={() => setEditModal({ isOpen: false, data: null })} style={{ padding: '8px 16px', border: '1px solid #d1d5db', background: 'white', borderRadius: '4px', cursor: 'pointer' }}>
-                  Hủy
-                </button>
-                <button type="submit" style={{ padding: '8px 16px', border: 'none', background: '#3b82f6', color: 'white', borderRadius: '4px', cursor: 'pointer' }}>
-                  Lưu thay đổi
-                </button>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setEditModal({ isOpen: false, data: null })}>Hủy</button>
+                <button type="submit" className="btn btn-primary">Lưu thay đổi</button>
               </div>
             </form>
           </div>
         </div>
       )}
-
     </div>
   );
 }
