@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Eye, EyeOff, Lock, User, Shield } from "lucide-react";
 import { authService } from "../services/authService";
+import { Icon, ShieldLogo } from "../components/ui/Icon";
+import { AICameraFeed } from "../components/ui/AICameraFeed";
 import "./LoginPage.css";
 
 function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -17,7 +17,6 @@ function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       const data = await authService.login(username, password);
       localStorage.setItem("token", data.token);
@@ -34,108 +33,102 @@ function LoginPage() {
   };
 
   return (
-    <div className="login-container">
-      <div className="login-left">
-        <div className="ai-badge">
-          <Shield size={16} />
-          <span>Bảo Mật Bằng AI</span>
+    <div className="login-root">
+      {/* Left hero */}
+      <div className="login-hero">
+        <div className="login-hero-glow" />
+
+        <div className="login-brand">
+          <div className="brand-mark"><ShieldLogo size={22} /></div>
+          <div style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 19, color: "#fff", letterSpacing: "-.02em" }}>VisionGate</div>
         </div>
 
-        <div className="login-content">
-          <h1 className="login-title">Truy cập doanh nghiệp</h1>
-          <h2 className="login-subtitle">Kiểm soát bởi AI.</h2>
-          <p className="login-description">
-            VisionGate sử dụng công nghệ nhận dạng sinh trắc học tiên tiến để
-            đảm bảo chỉ những người được ủy quyền mới có thể truy cập vào các
-            khu vực nhạy cảm.
-          </p>
+        <div className="login-hero-content">
+          <div className="login-headline">
+            <div className="login-ai-badge">
+              <Icon name="fingerprint" size={15} />
+              Bảo mật bằng AI
+            </div>
+            <h1 className="login-h1">
+              Quản lý điểm danh và{" "}
+              <span className="login-h1-accent">giám sát an ninh AI.</span>
+            </h1>
+            <p className="login-desc">
+              Hệ thống nhận diện khuôn mặt tự động chấm công, theo dõi thời gian thực và phát hiện vi phạm an toàn lao động, giúp tối ưu hóa quản lý nhân sự.
+            </p>
+          </div>
+
+          <AICameraFeed height={200} label="Cổng chính — CAM-01" />
         </div>
       </div>
 
-      <div className="login-right">
-        <div className="login-form-container">
-          <div className="login-header">
-            <div className="logo">
-              <Shield className="logo-icon" size={32} />
-              <span className="logo-text">VisionGate</span>
+      {/* Right form */}
+      <div className="login-form-side">
+        <div className="login-card fade-in">
+          <div style={{ textAlign: "center", marginBottom: 26 }}>
+            <div className="login-card-icon">
+              <ShieldLogo size={28} />
             </div>
+            <h2 style={{ fontFamily: "var(--display)", fontSize: 24, fontWeight: 700, margin: 0, letterSpacing: "-.02em" }}>Đăng nhập</h2>
+            <p className="page-sub" style={{ marginTop: 7 }}>Truy cập bảng điều khiển bảo mật</p>
           </div>
 
-          <div className="form-wrapper">
-            <h2 className="form-title">Đăng nhập</h2>
-            <p className="form-subtitle">
-              Nhập thông tin đăng nhập để truy cập bảng điều khiển bảo mật
-            </p>
+          {error && <div className="error-message">{error}</div>}
 
-            {error && (
-              <div className="error-message">
-                <span>{error}</span>
+          <form onSubmit={handleSubmit}>
+            <div className="field">
+              <label>Tên đăng nhập</label>
+              <div className="input-icon">
+                <Icon name="user" size={17} />
+                <input
+                  className="input"
+                  type="text"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  placeholder="Nhập tên đăng nhập"
+                  required
+                  autoComplete="username"
+                />
               </div>
-            )}
+            </div>
 
-            <form onSubmit={handleSubmit}>
-              <div className="form-group">
-                <label htmlFor="username">Tên đăng nhập</label>
-                <div className="input-wrapper">
-                  <User className="input-icon" size={12} />
-                  <input
-                    id="username"
-                    type="text"
-                    placeholder="Nhập tên đăng nhập của bạn"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    autoComplete="username"
-                  />
-                </div>
+            <div className="field">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <label style={{ marginBottom: 0 }}>Mật khẩu</label>
+                <Link to="/forgot-password" style={{ fontSize: 12.5, fontWeight: 700, color: "var(--primary-700)" }}>Quên mật khẩu?</Link>
               </div>
-
-              <div className="form-group">
-                <div className="label-row">
-                  <label htmlFor="password">Mật khẩu</label>
-                  <Link to="/forgot-password" className="forgot-link">
-                    Quên mật khẩu?
-                  </Link>
-                </div>
-                <div className="input-wrapper">
-                  <Lock className="input-icon" size={12} />
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Nhập mật khẩu của bạn"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    autoComplete="current-password"
-                  />
-                  <button
-                    type="button"
-                    className="toggle-password"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff size={12} /> : <Eye size={12} />}
-                  </button>
-                </div>
+              <div style={{ position: "relative", marginTop: 7 }}>
+                <Icon name="lock" size={17} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)" }} />
+                <input
+                  className="input"
+                  style={{ paddingLeft: 40, paddingRight: 42 }}
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Nhập mật khẩu"
+                  required
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(s => !s)}
+                  style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", padding: 4, background: "none", border: "none", cursor: "pointer" }}
+                >
+                  <Icon name={showPassword ? "eye_off" : "eye"} size={17} />
+                </button>
               </div>
+            </div>
 
-              <div className="form-options">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                  />
-                  <span>Duy trì đăng nhập trong 30 ngày</span>
-                </label>
-              </div>
-
-              <button type="submit" className="submit-btn" disabled={loading}>
-                {loading ? "Đang đăng nhập..." : "Đăng Nhập"}
-              </button>
-            </form>
-
-            <p className="powered-by">Powered by HINET</p>
-          </div>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ width: "100%", padding: "13px", fontSize: 15, marginTop: 20 }}
+              disabled={loading}
+            >
+              <Icon name="fingerprint" size={18} />
+              {loading ? "Đang xác thực…" : "Đăng nhập an toàn"}
+            </button>
+          </form>
         </div>
       </div>
     </div>
