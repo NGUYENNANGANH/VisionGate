@@ -127,47 +127,51 @@ function EmployeesPage() {
 
   return (
     <div className="dashboard-container">
-      <Sidebar user={user} />
+      <Sidebar user={user} onLogout={handleLogout} />
 
-      <main className="main-content">
+      <div className="main">
         <Header onLogout={handleLogout} />
 
-        <div className="page-header">
-          <div>
-            <h1>Quản lý nhân viên</h1>
-            <p className="page-description">
-              Quản lý thông tin nhân viên và phân quyền truy cập
-            </p>
+        <div className="page">
+          <div className="page-inner fade-in">
+            <div className="page-head">
+              <div>
+                <h1 className="page-title">Quản lý nhân viên</h1>
+                <p className="page-sub">
+                  Quản lý thông tin nhân viên và phân quyền truy cập
+                </p>
+              </div>
+              <button className="btn btn-primary" onClick={handleAdd}>
+                <Plus size={20} />
+                Thêm nhân viên
+              </button>
+            </div>
+
+            <EmployeeFilters
+              filters={filters}
+              onFilterChange={setFilters}
+              departments={departments}
+            />
+
+            <EmployeeTable
+              employees={employees}
+              departments={departments}
+              loading={loading}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+
+            {showModal && (
+              <EmployeeModal
+                employee={selectedEmployee}
+                departments={departments}
+                onClose={() => setShowModal(false)}
+                onSave={handleSave}
+              />
+            )}
           </div>
-          <button className="btn-primary" onClick={handleAdd}>
-            <Plus size={20} />
-            Thêm nhân viên
-          </button>
         </div>
-
-        <EmployeeFilters
-          filters={filters}
-          onFilterChange={setFilters}
-          departments={departments}
-        />
-
-        <EmployeeTable
-          employees={employees}
-          departments={departments}
-          loading={loading}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-
-        {showModal && (
-          <EmployeeModal
-            employee={selectedEmployee}
-            departments={departments}
-            onClose={() => setShowModal(false)}
-            onSave={handleSave}
-          />
-        )}
-      </main>
+      </div>
     </div>
   );
 }
