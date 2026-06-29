@@ -1,17 +1,24 @@
-import { useState, useRef } from "react";
-import { Upload, X, Image as ImageIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { X, Image as ImageIcon } from "lucide-react";
 import { uploadService } from "../../services/uploadService";
 import "./ImageUpload.css";
 
-function ImageUpload({ value, onChange, label = "Upload ảnh" }) {
+function ImageUpload({
+  value,
+  onChange,
+  onUploadComplete,
+  label = "Upload anh",
+  folder = "employees",
+}) {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(value || null);
   const [error, setError] = useState("");
   const fileInputRef = useRef(null);
 
-  //   useEffect(() => {
-  //     setPreview(value || null);
-  //   }, [value]);
+  useEffect(() => {
+    setPreview(value || null);
+  }, [value]);
+
   const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -20,16 +27,15 @@ function ImageUpload({ value, onChange, label = "Upload ảnh" }) {
     setUploading(true);
 
     try {
-      // Show preview immediately
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreview(reader.result);
       };
       reader.readAsDataURL(file);
 
-      // Upload to Cloudinary
-      const url = await uploadService.uploadImage(file, "employees");
-      onChange(url);
+      const uploaded = await uploadService.uploadImageWithMetadata(file, folder);
+      onChange(uploaded.url);
+      onUploadComplete?.(uploaded);
     } catch (err) {
       setError(err.message);
       setPreview(null);
@@ -41,6 +47,7 @@ function ImageUpload({ value, onChange, label = "Upload ảnh" }) {
   const handleRemove = () => {
     setPreview(null);
     onChange("");
+    onUploadComplete?.(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -70,12 +77,12 @@ function ImageUpload({ value, onChange, label = "Upload ảnh" }) {
           {uploading ? (
             <div className="upload-loading">
               <div className="spinner"></div>
-              <p>Đang upload...</p>
+              <p>Dang upload...</p>
             </div>
           ) : (
             <>
               <ImageIcon size={32} />
-              <p>Click để chọn ảnh</p>
+              <p>Click de chon anh</p>
               <span>JPG, PNG, WEBP (Max 5MB)</span>
             </>
           )}

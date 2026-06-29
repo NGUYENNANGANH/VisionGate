@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Wifi, WifiOff, MapPin } from "lucide-react";
+import { Plus, Edit, Trash2, Wifi, WifiOff, MapPin, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService";
 import api from "../services/api";
@@ -13,12 +13,16 @@ function DevicesPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState(null);
+  const [viewingDevice, setViewingDevice] = useState(null);
   const [formData, setFormData] = useState({
     deviceCode: "",
     deviceName: "",
     location: "",
     ipAddress: "",
-    isOnline: true,
+    rtspUsername: "admin",
+    rtspPassword: "",
+    rtspPort: 554,
+    isActive: true,
   });
   const navigate = useNavigate();
 
@@ -45,7 +49,7 @@ function DevicesPage() {
 
   const handleAdd = () => {
     setSelectedDevice(null);
-    setFormData({ deviceCode: "", deviceName: "", location: "", ipAddress: "", isOnline: true });
+    setFormData({ deviceCode: "", deviceName: "", location: "", ipAddress: "", rtspUsername: "admin", rtspPassword: "", rtspPort: 554, isActive: true });
     setShowModal(true);
   };
 
@@ -56,7 +60,10 @@ function DevicesPage() {
       deviceName: device.deviceName,
       location: device.location,
       ipAddress: device.ipAddress || "",
-      isOnline: device.isOnline,
+      rtspUsername: device.rtspUsername || "admin",
+      rtspPassword: device.rtspPassword || "",
+      rtspPort: device.rtspPort || 554,
+      isActive: device.isActive,
     });
     setShowModal(true);
   };
@@ -115,9 +122,24 @@ function DevicesPage() {
                   <div key={d.deviceId} className="card" style={{ overflow: "hidden", padding: 0 }}>
                     {/* Camera preview */}
                     <div style={{ position: "relative" }}>
-                      {d.isOnline ? (
-                        <div style={{ height: 168, background: "linear-gradient(135deg,#1a2230,#0e1420)", borderRadius: "18px 18px 0 0", display: "grid", placeItems: "center" }}>
-                          <Wifi size={32} style={{ color: "rgba(14,163,158,.5)" }} />
+                      {d.isActive ? (
+                        <div 
+                          style={{ height: 168, background: "#000", borderRadius: "18px 18px 0 0", overflow: "hidden", position: "relative", cursor: "pointer" }}
+                          onClick={() => setViewingDevice(d)}
+                          title="Bấm để xem phóng to"
+                        >
+                          <img 
+                            src={`http://localhost:5000/camera/stream?deviceId=${d.deviceId}`} 
+                            style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0, zIndex: 1 }} 
+                            alt="Camera Feed"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'grid';
+                            }}
+                          />
+                          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg,#1a2230,#0e1420)", display: "grid", placeItems: "center" }}>
+                            <Wifi size={32} style={{ color: "rgba(14,163,158,.5)" }} />
+                          </div>
                         </div>
                       ) : (
                         <div style={{ height: 168, background: "linear-gradient(135deg,#1a2230,#0e1420)", display: "grid", placeItems: "center", position: "relative", borderRadius: "18px 18px 0 0" }}>
@@ -130,10 +152,10 @@ function DevicesPage() {
                       )}
                       {/* Status badge */}
                       <div style={{ position: "absolute", top: 12, left: 12 }}>
-                        <span className={`badge ${d.isOnline ? "badge-green" : "badge-red"}`}
-                          style={{ background: d.isOnline ? "rgba(21,163,90,.92)" : "rgba(226,59,84,.92)", color: "#fff" }}>
+                        <span className={`badge ${d.isActive ? "badge-green" : "badge-red"}`}
+                          style={{ background: d.isActive ? "rgba(21,163,90,.92)" : "rgba(226,59,84,.92)", color: "#fff" }}>
                           <span className="bdot" style={{ background: "#fff" }} />
-                          {d.isOnline ? "ONLINE" : "OFFLINE"}
+                          {d.isActive ? "ONLINE" : "OFFLINE"}
                         </span>
                       </div>
                       {/* Edit/Delete overlay */}
@@ -148,7 +170,7 @@ function DevicesPage() {
                     <div style={{ padding: 18 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
                         <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--primary-soft)", color: "var(--primary)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                          {d.isOnline ? <Wifi size={18} /> : <WifiOff size={18} />}
+                          {d.isActive ? <Wifi size={18} /> : <WifiOff size={18} />}
                         </div>
                         <div>
                           <div style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 16 }}>{d.deviceName}</div>
@@ -213,15 +235,35 @@ function DevicesPage() {
                         required placeholder="Cổng vào chính - Tầng 1" />
                     </div>
                     <div className="field">
-                      <label>ĐỊA CHỈ IP</label>
+                      <label>ĐỊA CHỈ IP (CAMERA)</label>
                       <input className="input" type="text" value={formData.ipAddress}
                         onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
                         placeholder="192.168.1.100" />
                     </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px", gap: "12px", marginBottom: "16px" }}>
+                      <div className="field" style={{ marginBottom: 0 }}>
+                        <label>TÀI KHOẢN RTSP</label>
+                        <input className="input" type="text" value={formData.rtspUsername}
+                          onChange={(e) => setFormData({ ...formData, rtspUsername: e.target.value })}
+                          placeholder="admin" />
+                      </div>
+                      <div className="field" style={{ marginBottom: 0 }}>
+                        <label>MẬT KHẨU RTSP</label>
+                        <input className="input" type="password" value={formData.rtspPassword}
+                          onChange={(e) => setFormData({ ...formData, rtspPassword: e.target.value })}
+                          placeholder="***" />
+                      </div>
+                      <div className="field" style={{ marginBottom: 0 }}>
+                        <label>CỔNG</label>
+                        <input className="input" type="number" value={formData.rtspPort}
+                          onChange={(e) => setFormData({ ...formData, rtspPort: parseInt(e.target.value) || 554 })}
+                          placeholder="554" />
+                      </div>
+                    </div>
                     <div className="field">
                       <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                        <input type="checkbox" checked={formData.isOnline}
-                          onChange={(e) => setFormData({ ...formData, isOnline: e.target.checked })} />
+                        <input type="checkbox" checked={formData.isActive}
+                          onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })} />
                         <span>Thiết bị hoạt động</span>
                       </label>
                     </div>
@@ -232,6 +274,27 @@ function DevicesPage() {
                       </button>
                     </div>
                   </form>
+                </div>
+              </div>
+            )}
+
+            {/* Camera View Modal */}
+            {viewingDevice && (
+              <div className="modal-backdrop fade-in" onClick={() => setViewingDevice(null)} style={{ zIndex: 9999 }}>
+                <div className="modal-content" onClick={e => e.stopPropagation()} style={{ width: "90%", maxWidth: 1000, padding: 0, background: "#000", overflow: "hidden", position: "relative" }}>
+                  <div style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}>
+                    <button style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(0,0,0,0.5)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", display: "grid", placeItems: "center", backdropFilter: "blur(4px)" }} onClick={() => setViewingDevice(null)}>
+                      <X size={20} />
+                    </button>
+                  </div>
+                  <div style={{ position: "absolute", top: 16, left: 16, zIndex: 10, background: "rgba(0,0,0,0.5)", color: "#fff", padding: "8px 16px", borderRadius: 8, backdropFilter: "blur(4px)", fontWeight: 600 }}>
+                    {viewingDevice.deviceName} - {viewingDevice.location}
+                  </div>
+                  <img 
+                    src={`http://localhost:5000/camera/stream?deviceId=${viewingDevice.deviceId}`} 
+                    style={{ width: "100%", height: "auto", display: "block", minHeight: 400 }} 
+                    alt="Camera Fullscreen"
+                  />
                 </div>
               </div>
             )}

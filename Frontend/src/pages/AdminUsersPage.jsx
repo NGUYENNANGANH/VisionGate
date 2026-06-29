@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Lock, Unlock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService";
 import api from "../services/api";
@@ -24,6 +24,8 @@ function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [confirmTarget, setConfirmTarget] = useState(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
   const [formData, setFormData] = useState({
     username: "", password: "", fullName: "", email: "", role: 1,
   });
@@ -57,14 +59,20 @@ function AdminUsersPage() {
     setShowModal(true);
   };
 
-  const handleDelete = async (userId) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa tài khoản này?")) return;
+  const doToggleActive = async () => {
+    if (!confirmTarget) return;
+    const nextActive = !confirmTarget.isActive;
+    const action = nextActive ? "mở khóa" : "khóa";
     try {
-      await api.delete(`/auth/users/${userId}`);
+      setConfirmLoading(true);
+      await api.put(`/auth/users/${confirmTarget.userId}/active`, { isActive: nextActive });
+      setConfirmTarget(null);
       loadUsers();
     } catch (error) {
-      console.error("Failed to delete user:", error);
-      alert("Không thể xóa tài khoản. Vui lòng thử lại.");
+      console.error("Failed to toggle user status:", error);
+      alert(error.response?.data?.message || `Không thể ${action} tài khoản. Vui lòng thử lại.`);
+    } finally {
+      setConfirmLoading(false);
     }
   };
 
@@ -72,7 +80,13 @@ function AdminUsersPage() {
     e.preventDefault();
     try {
       if (selectedUser) {
-        alert("Chức năng cập nhật đang phát triển");
+        const payload = {
+          fullName: formData.fullName,
+          email: formData.email,
+          role: formData.role,
+          ...(formData.password ? { password: formData.password } : {}),
+        };
+        await api.put(`/auth/users/${selectedUser.userId}`, payload);
       } else {
         await api.post("/auth/users", formData);
       }
@@ -85,9 +99,9 @@ function AdminUsersPage() {
   };
 
   const getRoleName = (role) => {
-    if (role === 0 || role === "SuperAdmin") return "Super Admin";
-    if (role === 1 || role === "Admin") return "HR (Admin)";
-    if (role === 2 || role === "Viewer") return "Security (Viewer)";
+    if (role === 0 || role === "SuperAdmin") return "Quản trị hệ thống";
+    if (role === 1 || role === "Admin") return "Quản lý nhân sự";
+    if (role === 2 || role === "Viewer") return "Giám sát an ninh";
     return role;
   };
 
@@ -127,7 +141,6 @@ function AdminUsersPage() {
                       <th>Email</th>
                       <th>Vai trò</th>
                       <th>Trạng thái</th>
-                      <th>Lần đăng nhập cuối</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -154,19 +167,53 @@ function AdminUsersPage() {
                             ? <span className="badge badge-green"><span className="bdot" />Hoạt động</span>
                             : <span className="badge badge-red"><span className="bdot" />Bị khóa</span>}
                         </td>
-                        <td className="mono" style={{ fontSize: 12, color: userItem.lastLoginAt ? "var(--ink-2)" : "var(--ink-3)" }}>
-                          {userItem.lastLoginAt ? new Date(userItem.lastLoginAt).toLocaleString("vi-VN") : "Chưa đăng nhập"}
-                        </td>
                         <td>
                           <div className="row-act">
                             <button className="act-btn" onClick={() => handleEdit(userItem)} title="Sửa"><Edit size={15} /></button>
-                            <button className="act-btn danger" onClick={() => handleDelete(userItem.userId)} title="Xóa"><Trash2 size={15} /></button>
+                            {user.userId === userItem.userId ? (
+                              <button className="act-btn" disabled title="Không thể khóa tài khoản đang đăng nhập" style={{ opacity: .35, cursor: "not-allowed" }}><Lock size={15} /></button>
+                            ) : userItem.isActive ? (
+                              <button className="act-btn danger" onClick={() => setConfirmTarget(userItem)} title="Khóa tài khoản"><Lock size={15} /></button>
+                            ) : (
+                              <button className="act-btn" onClick={() => setConfirmTarget(userItem)} title="Mở khóa tài khoản" style={{ color: "var(--green)" }}><Unlock size={15} /></button>
+                            )}
                           </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {confirmTarget && (
+              <div style={{ position: "fixed", inset: 0, background: "rgba(13,21,38,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+                onClick={() => !confirmLoading && setConfirmTarget(null)}>
+                <div style={{ background: "var(--surface)", padding: "28px 26px", borderRadius: "var(--r-lg)", boxShadow: "var(--sh-lg)", width: 420, maxWidth: "calc(100vw - 32px)" }}
+                  onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
+                    <div style={{ width: 46, height: 46, borderRadius: 12, display: "grid", placeItems: "center", flexShrink: 0,
+                      background: confirmTarget.isActive ? "var(--red-soft)" : "var(--green-soft)",
+                      color: confirmTarget.isActive ? "var(--red)" : "var(--green)" }}>
+                      {confirmTarget.isActive ? <Lock size={22} /> : <Unlock size={22} />}
+                    </div>
+                    <h2 style={{ margin: 0, fontFamily: "var(--display)", fontSize: 19, color: "var(--ink)" }}>
+                      {confirmTarget.isActive ? "Khóa tài khoản" : "Mở khóa tài khoản"}
+                    </h2>
+                  </div>
+                  <p style={{ margin: "0 0 24px", fontSize: 14, lineHeight: 1.6, color: "var(--ink-2)" }}>
+                    {confirmTarget.isActive
+                      ? <>Tài khoản <b>{confirmTarget.username}</b> ({confirmTarget.fullName}) sẽ không thể đăng nhập cho đến khi được mở khóa. Dữ liệu và lịch sử vẫn được giữ nguyên.</>
+                      : <>Tài khoản <b>{confirmTarget.username}</b> ({confirmTarget.fullName}) sẽ có thể đăng nhập trở lại.</>}
+                  </p>
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                    <button type="button" className="btn btn-ghost" onClick={() => setConfirmTarget(null)} disabled={confirmLoading}>Hủy</button>
+                    <button type="button" className={confirmTarget.isActive ? "btn btn-primary" : "btn btn-green"} onClick={doToggleActive} disabled={confirmLoading}
+                      style={confirmTarget.isActive ? { background: "var(--red)", boxShadow: "0 8px 20px -8px rgba(226,59,84,.5)" } : undefined}>
+                      {confirmLoading ? "Đang xử lý…" : (confirmTarget.isActive ? "Khóa tài khoản" : "Mở khóa")}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 

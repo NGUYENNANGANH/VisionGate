@@ -1,3 +1,5 @@
+import React, { useState } from 'react';
+
 function Silhouette({ left, scale, hue }) {
   return (
     <div style={{
@@ -38,14 +40,24 @@ function cornerStyle(c) {
 }
 
 export function AICameraFeed({ height = 360, label = 'Cổng chính — CAM-01' }) {
+  const [streamUrl] = React.useState(`http://localhost:5000/camera/stream?deviceId=1&t=${Date.now()}`);
   return (
     <div style={{
       position: 'relative', height, borderRadius: 16, overflow: 'hidden',
       background: 'linear-gradient(180deg,#11203a 0%,#0a1426 60%,#070d18 100%)',
       border: '1px solid rgba(255,255,255,.08)',
     }}>
+      <img 
+        src={streamUrl} 
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 0 }} 
+        alt="Live Camera Stream"
+        onError={(e) => {
+          e.target.style.display = 'none';
+          e.target.nextSibling.style.display = 'block';
+        }}
+      />
       <div style={{
-        position: 'absolute', inset: 0,
+        position: 'absolute', inset: 0, display: 'none', zIndex: 0,
         backgroundImage: 'linear-gradient(rgba(34,211,238,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(34,211,238,.08) 1px,transparent 1px)',
         backgroundSize: '46px 46px',
         maskImage: 'linear-gradient(180deg,transparent 30%,#000 100%)',
@@ -53,11 +65,7 @@ export function AICameraFeed({ height = 360, label = 'Cổng chính — CAM-01' 
         transform: 'perspective(420px) rotateX(58deg) translateY(38%) scale(1.6)',
         transformOrigin: 'center bottom', opacity: .8,
       }} />
-      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(420px 240px at 65% 18%, rgba(34,211,238,.14), transparent 70%)' }} />
-      <Silhouette left="30%" scale={1} hue={188} />
-      <Silhouette left="60%" scale={0.82} hue={165} />
-      <DetectBox x="21%" y="30%" w="20%" h="54%" name="Nguyễn Năng Anh" tag="IT03 · 98%" tone="#22d3ee" />
-      <DetectBox x="53%" y="38%" w="16%" h="46%" name="Chưa xác định" tag="Thiếu mũ bảo hộ" tone="#f0b429" warn />
+      <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(420px 240px at 65% 18%, rgba(34,211,238,.14), transparent 70%)', zIndex: 0, pointerEvents: 'none' }} />
       <div className="cam-scan" style={{
         position: 'absolute', left: 0, right: 0, top: 0, height: 2,
         background: 'linear-gradient(90deg,transparent,rgba(34,211,238,.9),transparent)',

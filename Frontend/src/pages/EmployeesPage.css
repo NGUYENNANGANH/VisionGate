@@ -1,1 +1,101 @@
-/* Styles handled by the global design system in src/index.css */
+/* Employee page specific confirmation dialog */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(13, 21, 38, 0.48);
+  backdrop-filter: blur(6px);
+}
+
+.confirm-dialog {
+  width: min(420px, 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--sh-lg);
+  padding: 22px;
+  animation: confirmIn 0.18s ease-out;
+}
+
+.confirm-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  color: var(--amber);
+  background: var(--amber-soft);
+  margin-bottom: 14px;
+}
+
+.confirm-icon.danger {
+  color: var(--red);
+  background: var(--red-soft);
+}
+
+.confirm-copy h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 20px;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.confirm-copy p {
+  margin: 8px 0 0;
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 17px;
+  border-radius: 11px;
+  background: var(--red);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13.5px;
+  box-shadow: 0 8px 20px -8px rgba(226, 59, 84, 0.6);
+  white-space: nowrap;
+}
+
+.btn-danger:hover {
+  filter: brightness(1.04);
+}
+
+@keyframes confirmIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .confirm-actions .btn-ghost,
+  .confirm-actions .btn-danger,
+  .confirm-actions .btn-primary {
+    width: 100%;
+  }
+}

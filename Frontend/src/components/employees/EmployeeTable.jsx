@@ -1,4 +1,4 @@
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, UserX } from "lucide-react";
 import "./EmployeeTable.css";
 
 const getAvatarStyle = (name) => {
@@ -13,7 +13,7 @@ const getInitials = (name) => {
   return last2.map((w) => w[0]).join("").toUpperCase();
 };
 
-function EmployeeTable({ employees, departments, loading, onEdit, onDelete }) {
+function EmployeeTable({ employees, departments, loading, onEdit, onDelete, onPermanentDelete }) {
   const getDeptName = (deptId) => {
     const dept = departments.find((d) => d.departmentId === deptId);
     return dept?.departmentName || "N/A";
@@ -106,7 +106,12 @@ function EmployeeTable({ employees, departments, loading, onEdit, onDelete }) {
                     <button className="act-btn" onClick={() => onEdit(emp)} title="Sửa">
                       <Edit size={15} />
                     </button>
-                    <button className="act-btn danger" onClick={() => onDelete(emp.employeeId)} title="Xóa">
+                    {emp.isActive && (
+                      <button className="act-btn danger" onClick={() => onDelete(emp.employeeId)} title="Nghỉ việc">
+                        <UserX size={15} />
+                      </button>
+                    )}
+                    <button className="act-btn danger" onClick={() => onPermanentDelete(emp.employeeId)} title="Xóa">
                       <Trash2 size={15} />
                     </button>
                   </div>

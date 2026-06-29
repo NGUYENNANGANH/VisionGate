@@ -322,7 +322,7 @@ a { text-decoration: none; }
 .input:focus, .form-input:focus { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 4px var(--primary-soft); }
 .input:disabled, .form-input:disabled { opacity: .6; cursor: not-allowed; }
 .input-icon { position: relative; }
-.input-icon svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--ink-3); }
+.input-icon > svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--ink-3); }
 .input-icon .input { padding-left: 40px; }
 
 .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }

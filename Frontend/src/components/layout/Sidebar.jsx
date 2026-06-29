@@ -14,7 +14,7 @@ const NAV = [
 
 const NAV_ADMIN = [
   { to: "/admin/users", label: "Tài khoản hệ thống", icon: "shield_user", adminOnly: true },
-  { to: "/settings", label: "Cấu hình hệ thống", icon: "settings" },
+  { to: "/settings", label: "Quản lý ca làm việc", icon: "settings" },
 ];
 
 const getInitials = (name = "") =>

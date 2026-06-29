@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { authService } from "../services/authService";
 import { Icon, ShieldLogo } from "../components/ui/Icon";
-import { AICameraFeed } from "../components/ui/AICameraFeed";
 import "./LoginPage.css";
 
 function LoginPage() {
@@ -37,40 +36,39 @@ function LoginPage() {
       {/* Left hero */}
       <div className="login-hero">
         <div className="login-hero-glow" />
+        <div className="login-hero-grid" />
 
         <div className="login-brand">
           <div className="brand-mark"><ShieldLogo size={22} /></div>
-          <div style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 19, color: "#fff", letterSpacing: "-.02em" }}>VisionGate</div>
+          <div className="login-brand-name">VisionGate</div>
         </div>
 
         <div className="login-hero-content">
-          <div className="login-headline">
-            <div className="login-ai-badge">
-              <Icon name="fingerprint" size={15} />
-              Bảo mật bằng AI
-            </div>
-            <h1 className="login-h1">
-              Quản lý điểm danh và{" "}
-              <span className="login-h1-accent">giám sát an ninh AI.</span>
-            </h1>
-            <p className="login-desc">
-              Hệ thống nhận diện khuôn mặt tự động chấm công, theo dõi thời gian thực và phát hiện vi phạm an toàn lao động, giúp tối ưu hóa quản lý nhân sự.
-            </p>
+          <div className="login-ai-badge">
+            <Icon name="fingerprint" size={15} />
+            Bảo mật bằng AI
           </div>
-
-          <AICameraFeed height={200} label="Cổng chính — CAM-01" />
+          <h1 className="login-h1">
+            Quản lý điểm danh và{" "}
+            <span className="login-h1-accent">giám sát an ninh AI.</span>
+          </h1>
+          <p className="login-desc">
+            Hệ thống nhận diện khuôn mặt tự động chấm công, theo dõi thời gian
+            thực và phát hiện vi phạm an toàn lao động, giúp tối ưu hóa quản lý
+            nhân sự.
+          </p>
         </div>
       </div>
 
       {/* Right form */}
       <div className="login-form-side">
         <div className="login-card fade-in">
-          <div style={{ textAlign: "center", marginBottom: 26 }}>
+          <div className="login-card-head">
             <div className="login-card-icon">
               <ShieldLogo size={28} />
             </div>
-            <h2 style={{ fontFamily: "var(--display)", fontSize: 24, fontWeight: 700, margin: 0, letterSpacing: "-.02em" }}>Đăng nhập</h2>
-            <p className="page-sub" style={{ marginTop: 7 }}>Truy cập bảng điều khiển bảo mật</p>
+            <h2 className="login-card-title">Đăng nhập</h2>
+            <p className="page-sub login-card-sub">Truy cập bảng điều khiển bảo mật</p>
           </div>
 
           {error && <div className="error-message">{error}</div>}
@@ -93,15 +91,14 @@ function LoginPage() {
             </div>
 
             <div className="field">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <label style={{ marginBottom: 0 }}>Mật khẩu</label>
-                <Link to="/forgot-password" style={{ fontSize: 12.5, fontWeight: 700, color: "var(--primary-700)" }}>Quên mật khẩu?</Link>
+              <div className="login-label-row">
+                <label>Mật khẩu</label>
+                <Link to="/forgot-password" className="login-forgot">Quên mật khẩu?</Link>
               </div>
-              <div style={{ position: "relative", marginTop: 7 }}>
-                <Icon name="lock" size={17} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)" }} />
+              <div className="input-icon">
+                <Icon name="lock" size={17} />
                 <input
-                  className="input"
-                  style={{ paddingLeft: 40, paddingRight: 42 }}
+                  className="input login-pass-input"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
@@ -111,8 +108,9 @@ function LoginPage() {
                 />
                 <button
                   type="button"
+                  className="login-pass-toggle"
                   onClick={() => setShowPassword(s => !s)}
-                  style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", padding: 4, background: "none", border: "none", cursor: "pointer" }}
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                 >
                   <Icon name={showPassword ? "eye_off" : "eye"} size={17} />
                 </button>
@@ -121,14 +119,18 @@ function LoginPage() {
 
             <button
               type="submit"
-              className="btn btn-primary"
-              style={{ width: "100%", padding: "13px", fontSize: 15, marginTop: 20 }}
+              className="btn btn-primary login-submit"
               disabled={loading}
             >
               <Icon name="fingerprint" size={18} />
               {loading ? "Đang xác thực…" : "Đăng nhập an toàn"}
             </button>
           </form>
+
+          <p className="login-foot-note">
+            <Icon name="lock" size={13} />
+            Kết nối được mã hóa &amp; bảo mật
+          </p>
         </div>
       </div>
     </div>

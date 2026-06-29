@@ -114,7 +114,7 @@ function DashboardPage() {
       const res = await api.get("/dashboard/stats");
       setStats(res.data);
     } catch {
-      setStats({ totalEmployees: 0, presentToday: 0, violations: 0, onlineDevices: 0, totalDevices: 0 });
+      setStats({ totalEmployees: 0, todayCheckIns: 0, todayViolations: 0, onlineDevices: 0, totalDevices: 0 });
     }
   }, []);
 
@@ -128,7 +128,7 @@ function DashboardPage() {
         name: item.employee?.fullName || 'Chưa xác định',
         photo: item.employee?.faceImageUrl || null,
         loc: item.device?.location || 'Không xác định',
-        status: item.status === 'Success' || item.status === 0 ? 'ok' : 'violation',
+        status: (item.ppeDetection && item.ppeDetection.overallCompliance) ? 'ok' : 'violation',
         time: item.checkInTime ? new Date(item.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—',
         _raw: new Date(item.checkInTime),
       }));
@@ -209,8 +209,8 @@ function DashboardPage() {
             {/* KPI cards */}
             <div className="grid" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginBottom: 18 }}>
               <StatCard icon="users" tone="teal" value={stats?.totalEmployees ?? '—'} label="Tổng số nhân viên" trend="+2" trendDir="up" spark={[3,4,4,5,6,6,7]} />
-              <StatCard icon="check" tone="green" value={stats?.presentToday ?? '—'} label="Đang có mặt" sub="Hôm nay" spark={[5,6,4,7,3,1,0]} />
-              <StatCard icon="alert" tone="red" value={stats?.violations ?? '—'} label="Vi phạm hôm nay" trend={stats?.violations > 0 ? `+${stats.violations}` : undefined} trendDir="up" spark={[0,0,1,0,0,1,1]} />
+              <StatCard icon="check" tone="green" value={stats?.todayCheckIns ?? '—'} label="Đang có mặt" sub="Hôm nay" spark={[5,6,4,7,3,1,0]} />
+              <StatCard icon="alert" tone="red" value={stats?.todayViolations ?? '—'} label="Vi phạm hôm nay" trend={stats?.todayViolations > 0 ? `+${stats?.todayViolations}` : undefined} trendDir="up" spark={[0,0,1,0,0,1,1]} />
               <StatCard icon="devices" tone="blue" value={`${stats?.onlineDevices ?? 0}/${stats?.totalDevices ?? 0}`} label="Thiết bị trực tuyến" sub={connected ? 'SignalR kết nối' : 'Ngoại tuyến'} spark={[2,2,1,2,0,0,0]} />
             </div>
 
@@ -218,20 +218,6 @@ function DashboardPage() {
             <div className="grid" style={{ gridTemplateColumns: '1.55fr 1fr' }}>
               {/* Left: live feed + activity */}
               <div className="grid">
-                <div className="card" style={{ padding: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 13 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                      <Icon name="cam" size={18} style={{ color: 'var(--primary)' }} />
-                      <h3 style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, margin: 0, whiteSpace: 'nowrap' }}>AI Feed thời gian thực</h3>
-                    </div>
-                    <div className="tabs" style={{ padding: 4 }}>
-                      <button className="tab active" style={{ padding: '6px 12px', fontSize: 12.5 }}>CAM-01</button>
-                      <button className="tab" style={{ padding: '6px 12px', fontSize: 12.5 }}>CAM-02</button>
-                    </div>
-                  </div>
-                  <AICameraFeed height={320} label="Cổng chính — CAM-01" />
-                </div>
-
                 {/* Recent activity */}
                 <div className="card" style={{ padding: 18 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>

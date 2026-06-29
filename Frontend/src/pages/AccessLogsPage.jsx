@@ -60,9 +60,8 @@ function AccessLogsPage() {
           time: item.checkInTime,
           employee: item.employee,
           location: item.device?.location || "Unknown",
-          status: item.status === "Success" || item.status === 0 ? "ĐIỂM DANH"
-            : item.status === "Warning" || item.status === 2 ? "CẢNH BÁO" : "THẤT BẠI",
-          statusType: item.status === "Success" || item.status === 0 ? "success" : "warning",
+          status: (item.ppeDetection && item.ppeDetection.overallCompliance) ? "ĐIỂM DANH" : "CẢNH BÁO",
+          statusType: (item.ppeDetection && item.ppeDetection.overallCompliance) ? "success" : "warning",
           imageUrl: item.checkInImageUrl,
           type: "checkin",
           rawData: item,
@@ -359,8 +358,8 @@ function AccessLogsPage() {
             
             <div style={{ display: "flex", gap: 20, marginBottom: 24 }}>
               {selectedLog.imageUrl ? (
-                <div style={{ width: 140, height: 140, borderRadius: 8, overflow: "hidden", background: "#0e1420", border: "1px solid rgba(255,255,255,.08)", flexShrink: 0 }}>
-                  <img src={selectedLog.imageUrl} alt="Evidence" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <div style={{ width: 140, height: 220, borderRadius: 8, overflow: "hidden", background: "#0e1420", border: "1px solid rgba(255,255,255,.08)", flexShrink: 0 }}>
+                  <img src={selectedLog.imageUrl} alt="Evidence" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                 </div>
               ) : (
                 <div style={{ width: 140, height: 140, borderRadius: 8, background: "#0e1420", border: "1px solid rgba(255,255,255,.08)", display: "grid", placeItems: "center", flexShrink: 0 }}>
