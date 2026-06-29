@@ -25,32 +25,6 @@ public class ReportsController : ControllerBase
         return Ok(report);
     }
 
-    // GET: api/reports/violations
-    [HttpGet("violations")]
-    public async Task<ActionResult<object>> GetViolationReport([FromQuery] ViolationReportRequest request)
-    {
-        var report = await _reportService.GetViolationReportAsync(request);
-        return Ok(report);
-    }
-
-    // GET: api/reports/employee/5/history
-    [HttpGet("employee/{id}/history")]
-    public async Task<ActionResult<object>> GetEmployeeHistory(
-        int id,
-        [FromQuery] DateTime? from = null,
-        [FromQuery] DateTime? to = null)
-    {
-        try
-        {
-            var history = await _reportService.GetEmployeeHistoryAsync(id, from, to);
-            return Ok(history);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-    }
-
     // POST: api/reports/export-excel
     [HttpPost("export-excel")]
     public async Task<ActionResult> ExportExcel([FromBody] ExportExcelRequest request)

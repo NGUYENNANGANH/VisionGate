@@ -32,7 +32,6 @@ public class AuthService : IAuthService
         if (!VerifyPassword(password, user.PasswordHash))
             return null;
 
-        user.LastLoginAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
         var token = GenerateJwtToken(user);
@@ -74,7 +73,6 @@ public class AuthService : IAuthService
             return false;
 
         user.PasswordHash = HashPassword(newPassword);
-        user.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
         return true;
@@ -127,4 +125,34 @@ public class AuthService : IAuthService
         .OrderByDescending(u => u.CreatedAt)
         .ToListAsync();
 }
+
+    public async Task<bool> SetUserActiveAsync(int userId, bool isActive)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+            return false;
+
+        user.IsActive = isActive;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<(bool Ok, string? Error, User? User)> UpdateUserAsync(int userId, string fullName, string email, UserRole role, string? newPassword)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+            return (false, "Không tìm thấy tài khoản", null);
+
+        if (await _context.Users.AnyAsync(u => u.Email == email && u.UserId != userId))
+            return (false, "Email đã được sử dụng bởi tài khoản khác", null);
+
+        user.FullName = fullName;
+        user.Email = email;
+        user.Role = role;
+        if (!string.IsNullOrWhiteSpace(newPassword))
+            user.PasswordHash = HashPassword(newPassword);
+
+        await _context.SaveChangesAsync();
+        return (true, null, user);
+    }
 }

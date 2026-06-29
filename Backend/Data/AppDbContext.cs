@@ -9,29 +9,18 @@ public class AppDbContext : DbContext
     {
     }
 
-    public DbSet<Department> Departments { get; set; }
     public DbSet<Employee> Employees { get; set; }
     public DbSet<CheckInRecord> CheckInRecords { get; set; }
     public DbSet<PPEDetection> PPEDetections { get; set; }
     public DbSet<Violation> Violations { get; set; }
     public DbSet<Device> Devices { get; set; }
-    public DbSet<Notification> Notifications { get; set; }
     public DbSet<User> Users { get; set; }
-    public DbSet<AttendanceReport> AttendanceReports { get; set; }
-    public DbSet<Setting> Settings { get; set; }
+    public DbSet<ShiftConfig> ShiftConfigs { get; set; }
+    public DbSet<EmployeeFace> EmployeeFaces { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
-        // Department
-        modelBuilder.Entity<Department>(entity =>
-        {
-            entity.HasKey(e => e.DepartmentId);
-            entity.Property(e => e.DepartmentName).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.DepartmentCode).IsRequired().HasMaxLength(50);
-            entity.HasIndex(e => e.DepartmentCode).IsUnique();
-        });
 
         // Employee
         modelBuilder.Entity<Employee>(entity =>
@@ -41,14 +30,28 @@ public class AppDbContext : DbContext
             entity.Property(e => e.FullName).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Email).HasMaxLength(100);
             entity.Property(e => e.PhoneNumber).HasMaxLength(20);
-            entity.Property(e => e.Position).HasMaxLength(100);
             entity.HasIndex(e => e.EmployeeCode).IsUnique();
             entity.HasIndex(e => e.Email).IsUnique();
-            
-            entity.HasOne(e => e.Department)
-                .WithMany(d => d.Employees)
-                .HasForeignKey(e => e.DepartmentId)
-                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.ShiftConfig)
+                .WithMany(s => s.Employees)
+                .HasForeignKey(e => e.ShiftId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // EmployeeFace
+        modelBuilder.Entity<EmployeeFace>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FaceImageUrl).IsRequired();
+            entity.Property(e => e.CloudinaryPublicId).HasMaxLength(255);
+            entity.Property(e => e.FaceEmbedding).IsRequired();
+            entity.HasIndex(e => e.EmployeeId);
+
+            entity.HasOne(e => e.Employee)
+                .WithMany(emp => emp.EmployeeFaces)
+                .HasForeignKey(e => e.EmployeeId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // CheckInRecord
@@ -68,11 +71,6 @@ public class AppDbContext : DbContext
                 .WithMany(d => d.CheckInRecords)
                 .HasForeignKey(e => e.DeviceId)
                 .OnDelete(DeleteBehavior.SetNull);
-            
-            entity.HasOne(e => e.PPEDetection)
-                .WithOne(p => p.CheckInRecord)
-                .HasForeignKey<CheckInRecord>(e => e.PPEDetectionId)
-                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // PPEDetection
@@ -80,11 +78,10 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.PPEDetectionId);
             entity.Property(e => e.ConfidenceScore).HasPrecision(5, 2);
-            entity.HasIndex(e => e.DetectionTime);
             
-            entity.HasOne(e => e.Employee)
-                .WithMany(emp => emp.PPEDetections)
-                .HasForeignKey(e => e.EmployeeId)
+            entity.HasOne(e => e.CheckInRecord)
+                .WithOne(c => c.PPEDetection)
+                .HasForeignKey<PPEDetection>(e => e.CheckInId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
@@ -92,24 +89,18 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Violation>(entity =>
         {
             entity.HasKey(e => e.ViolationId);
-            entity.Property(e => e.Description).IsRequired().HasMaxLength(500);
             entity.HasIndex(e => e.CreatedAt);
-            entity.HasIndex(e => new { e.EmployeeId, e.IsResolved });
-            
-            entity.HasOne(e => e.Employee)
-                .WithMany(emp => emp.Violations)
-                .HasForeignKey(e => e.EmployeeId)
-                .OnDelete(DeleteBehavior.Restrict);
-            
-            entity.HasOne(e => e.CheckInRecord)
-                .WithMany(c => c.Violations)
-                .HasForeignKey(e => e.CheckInId)
-                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => e.IsResolved);
             
             entity.HasOne(e => e.PPEDetection)
                 .WithMany(p => p.Violations)
                 .HasForeignKey(e => e.PPEDetectionId)
                 .OnDelete(DeleteBehavior.SetNull);
+                
+            entity.HasOne(e => e.Employee)
+                .WithMany(emp => emp.Violations)
+                .HasForeignKey(e => e.EmployeeId)
+                .OnDelete(DeleteBehavior.Cascade);
             
             entity.HasOne(e => e.ResolvedByUser)
                 .WithMany(u => u.ResolvedViolations)
@@ -127,26 +118,6 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.DeviceCode).IsUnique();
         });
 
-        // Notification
-        modelBuilder.Entity<Notification>(entity =>
-        {
-            entity.HasKey(e => e.NotificationId);
-            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.Message).IsRequired().HasMaxLength(1000);
-            entity.HasIndex(e => e.CreatedAt);
-            entity.HasIndex(e => new { e.EmployeeId, e.IsRead });
-            
-            entity.HasOne(e => e.Employee)
-                .WithMany(emp => emp.Notifications)
-                .HasForeignKey(e => e.EmployeeId)
-                .OnDelete(DeleteBehavior.SetNull);
-            
-            entity.HasOne(e => e.Violation)
-                .WithMany(v => v.Notifications)
-                .HasForeignKey(e => e.ViolationId)
-                .OnDelete(DeleteBehavior.SetNull);
-        });
-
         // User
         modelBuilder.Entity<User>(entity =>
         {
@@ -159,26 +130,22 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.Email).IsUnique();
         });
 
-        // AttendanceReport
-        modelBuilder.Entity<AttendanceReport>(entity =>
+        // ShiftConfig
+        modelBuilder.Entity<ShiftConfig>(entity =>
         {
-            entity.HasKey(e => e.ReportId);
-            entity.Property(e => e.TotalHours).HasPrecision(5, 2);
-            entity.HasIndex(e => new { e.EmployeeId, e.Date }).IsUnique();
+            entity.HasKey(e => e.ShiftId);
+            entity.Property(e => e.ShiftName).IsRequired().HasMaxLength(100);
             
-            entity.HasOne(e => e.Employee)
-                .WithMany(emp => emp.AttendanceReports)
-                .HasForeignKey(e => e.EmployeeId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        // Setting
-        modelBuilder.Entity<Setting>(entity =>
-        {
-            entity.HasKey(e => e.SettingId);
-            entity.Property(e => e.Key).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Value).IsRequired();
-            entity.HasIndex(e => e.Key).IsUnique();
+            // Seed data mặc định
+            entity.HasData(new ShiftConfig
+            {
+                ShiftId = 1,
+                ShiftName = "Ca Hành Chính",
+                StartTime = new TimeOnly(8, 0),
+                EndTime = new TimeOnly(17, 0),
+                Description = "Ca làm việc mặc định",
+                IsActive = true
+            });
         });
     }
 }

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VisionGate.Data;
 
@@ -11,9 +12,11 @@ using VisionGate.Data;
 namespace VisionGate.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260617183253_AddShiftConfig_RemoveSettings_RemoveDepartment_Notification")]
+    partial class AddShiftConfig_RemoveSettings_RemoveDepartment_Notification
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -49,11 +52,38 @@ namespace VisionGate.Migrations
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
 
+                    b.Property<bool>("HasPPE")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsOfflineSync")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("PPEDetectionId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ShiftConfigShiftId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ShiftId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("SyncedAt")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("CheckInId");
 
                     b.HasIndex("CheckInTime");
 
                     b.HasIndex("DeviceId");
+
+                    b.HasIndex("PPEDetectionId")
+                        .IsUnique()
+                        .HasFilter("[PPEDetectionId] IS NOT NULL");
+
+                    b.HasIndex("ShiftConfigShiftId");
 
                     b.HasIndex("EmployeeId", "CheckInTime");
 
@@ -87,19 +117,22 @@ namespace VisionGate.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime?>("LastHeartbeat")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Location")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<string>("RtspPassword")
+                    b.Property<string>("MacAddress")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("RtspPort")
+                    b.Property<int>("Status")
                         .HasColumnType("int");
 
-                    b.Property<string>("RtspUsername")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("DeviceId");
 
@@ -119,6 +152,9 @@ namespace VisionGate.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Department")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(100)
@@ -147,10 +183,20 @@ namespace VisionGate.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("Position")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<int>("ShiftId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TelegramUserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("EmployeeId");
@@ -165,46 +211,6 @@ namespace VisionGate.Migrations
                     b.HasIndex("ShiftId");
 
                     b.ToTable("Employees");
-                });
-
-            modelBuilder.Entity("VisionGate.Models.EmployeeFace", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Angle")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CloudinaryPublicId")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("EmployeeId")
-                        .HasColumnType("int");
-
-                    b.Property<byte[]>("FaceEmbedding")
-                        .IsRequired()
-                        .HasColumnType("varbinary(max)");
-
-                    b.Property<string>("FaceImageUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsPrimary")
-                        .HasColumnType("bit");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.ToTable("EmployeeFaces");
                 });
 
             modelBuilder.Entity("VisionGate.Models.PPEDetection", b =>
@@ -228,6 +234,12 @@ namespace VisionGate.Migrations
                     b.Property<string>("DetectionData")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("DetectionTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("EmployeeId")
+                        .HasColumnType("int");
+
                     b.Property<bool>("HasGloves")
                         .HasColumnType("bit");
 
@@ -243,14 +255,17 @@ namespace VisionGate.Migrations
                     b.Property<bool>("HasSafetyVest")
                         .HasColumnType("bit");
 
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("OverallCompliance")
                         .HasColumnType("bit");
 
                     b.HasKey("PPEDetectionId");
 
-                    b.HasIndex("CheckInId")
-                        .IsUnique()
-                        .HasFilter("[CheckInId] IS NOT NULL");
+                    b.HasIndex("DetectionTime");
+
+                    b.HasIndex("EmployeeId");
 
                     b.ToTable("PPEDetections");
                 });
@@ -320,12 +335,24 @@ namespace VisionGate.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("PasswordResetToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("PasswordResetTokenExpiry")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("Role")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Username")
                         .IsRequired()
@@ -351,13 +378,27 @@ namespace VisionGate.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ViolationId"));
 
+                    b.Property<int?>("CheckInId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("EmployeeId")
                         .HasColumnType("int");
 
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsResolved")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("NotificationSent")
                         .HasColumnType("bit");
 
                     b.Property<int?>("PPEDetectionId")
@@ -369,20 +410,23 @@ namespace VisionGate.Migrations
                     b.Property<int?>("ResolvedBy")
                         .HasColumnType("int");
 
+                    b.Property<int>("Severity")
+                        .HasColumnType("int");
+
                     b.Property<int>("ViolationType")
                         .HasColumnType("int");
 
                     b.HasKey("ViolationId");
 
+                    b.HasIndex("CheckInId");
+
                     b.HasIndex("CreatedAt");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.HasIndex("IsResolved");
 
                     b.HasIndex("PPEDetectionId");
 
                     b.HasIndex("ResolvedBy");
+
+                    b.HasIndex("EmployeeId", "IsResolved");
 
                     b.ToTable("Violations");
                 });
@@ -400,9 +444,22 @@ namespace VisionGate.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("VisionGate.Models.PPEDetection", "PPEDetection")
+                        .WithOne("CheckInRecord")
+                        .HasForeignKey("VisionGate.Models.CheckInRecord", "PPEDetectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("VisionGate.Models.ShiftConfig", "ShiftConfig")
+                        .WithMany("CheckInRecords")
+                        .HasForeignKey("ShiftConfigShiftId");
+
                     b.Navigation("Device");
 
                     b.Navigation("Employee");
+
+                    b.Navigation("PPEDetection");
+
+                    b.Navigation("ShiftConfig");
                 });
 
             modelBuilder.Entity("VisionGate.Models.Employee", b =>
@@ -416,33 +473,27 @@ namespace VisionGate.Migrations
                     b.Navigation("ShiftConfig");
                 });
 
-            modelBuilder.Entity("VisionGate.Models.EmployeeFace", b =>
+            modelBuilder.Entity("VisionGate.Models.PPEDetection", b =>
                 {
                     b.HasOne("VisionGate.Models.Employee", "Employee")
-                        .WithMany("EmployeeFaces")
+                        .WithMany("PPEDetections")
                         .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Employee");
                 });
 
-            modelBuilder.Entity("VisionGate.Models.PPEDetection", b =>
-                {
-                    b.HasOne("VisionGate.Models.CheckInRecord", "CheckInRecord")
-                        .WithOne("PPEDetection")
-                        .HasForeignKey("VisionGate.Models.PPEDetection", "CheckInId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("CheckInRecord");
-                });
-
             modelBuilder.Entity("VisionGate.Models.Violation", b =>
                 {
+                    b.HasOne("VisionGate.Models.CheckInRecord", "CheckInRecord")
+                        .WithMany("Violations")
+                        .HasForeignKey("CheckInId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("VisionGate.Models.Employee", "Employee")
                         .WithMany("Violations")
                         .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("VisionGate.Models.PPEDetection", "PPEDetection")
@@ -455,6 +506,8 @@ namespace VisionGate.Migrations
                         .HasForeignKey("ResolvedBy")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.Navigation("CheckInRecord");
+
                     b.Navigation("Employee");
 
                     b.Navigation("PPEDetection");
@@ -464,7 +517,7 @@ namespace VisionGate.Migrations
 
             modelBuilder.Entity("VisionGate.Models.CheckInRecord", b =>
                 {
-                    b.Navigation("PPEDetection");
+                    b.Navigation("Violations");
                 });
 
             modelBuilder.Entity("VisionGate.Models.Device", b =>
@@ -476,18 +529,22 @@ namespace VisionGate.Migrations
                 {
                     b.Navigation("CheckInRecords");
 
-                    b.Navigation("EmployeeFaces");
+                    b.Navigation("PPEDetections");
 
                     b.Navigation("Violations");
                 });
 
             modelBuilder.Entity("VisionGate.Models.PPEDetection", b =>
                 {
+                    b.Navigation("CheckInRecord");
+
                     b.Navigation("Violations");
                 });
 
             modelBuilder.Entity("VisionGate.Models.ShiftConfig", b =>
                 {
+                    b.Navigation("CheckInRecords");
+
                     b.Navigation("Employees");
                 });
 

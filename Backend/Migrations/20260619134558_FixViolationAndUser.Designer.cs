@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VisionGate.Data;
 
@@ -11,9 +12,11 @@ using VisionGate.Data;
 namespace VisionGate.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260619134558_FixViolationAndUser")]
+    partial class FixViolationAndUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -81,9 +84,6 @@ namespace VisionGate.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("IpAddress")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -91,15 +91,6 @@ namespace VisionGate.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("RtspPassword")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("RtspPort")
-                        .HasColumnType("int");
-
-                    b.Property<string>("RtspUsername")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("DeviceId");
 
@@ -150,9 +141,6 @@ namespace VisionGate.Migrations
                     b.Property<int>("ShiftId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime2");
-
                     b.HasKey("EmployeeId");
 
                     b.HasIndex("Email")
@@ -165,46 +153,6 @@ namespace VisionGate.Migrations
                     b.HasIndex("ShiftId");
 
                     b.ToTable("Employees");
-                });
-
-            modelBuilder.Entity("VisionGate.Models.EmployeeFace", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Angle")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CloudinaryPublicId")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("EmployeeId")
-                        .HasColumnType("int");
-
-                    b.Property<byte[]>("FaceEmbedding")
-                        .IsRequired()
-                        .HasColumnType("varbinary(max)");
-
-                    b.Property<string>("FaceImageUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsPrimary")
-                        .HasColumnType("bit");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.ToTable("EmployeeFaces");
                 });
 
             modelBuilder.Entity("VisionGate.Models.PPEDetection", b =>
@@ -416,17 +364,6 @@ namespace VisionGate.Migrations
                     b.Navigation("ShiftConfig");
                 });
 
-            modelBuilder.Entity("VisionGate.Models.EmployeeFace", b =>
-                {
-                    b.HasOne("VisionGate.Models.Employee", "Employee")
-                        .WithMany("EmployeeFaces")
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Employee");
-                });
-
             modelBuilder.Entity("VisionGate.Models.PPEDetection", b =>
                 {
                     b.HasOne("VisionGate.Models.CheckInRecord", "CheckInRecord")
@@ -475,8 +412,6 @@ namespace VisionGate.Migrations
             modelBuilder.Entity("VisionGate.Models.Employee", b =>
                 {
                     b.Navigation("CheckInRecords");
-
-                    b.Navigation("EmployeeFaces");
 
                     b.Navigation("Violations");
                 });

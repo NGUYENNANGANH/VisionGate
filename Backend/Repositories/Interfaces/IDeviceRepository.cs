@@ -9,5 +9,4 @@ public interface IDeviceRepository
     Task<Device> AddAsync(Device device);
     Task UpdateAsync(Device device);
     Task<bool> ExistsAsync(int id);
-    Task<int> GetOnlineCountAsync();
 }

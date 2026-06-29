@@ -90,10 +90,49 @@ public async Task<IActionResult> GetAllUsers()
         u.Email,
         u.Role,
         u.IsActive,
-        u.LastLoginAt,
         u.CreatedAt
     }));
 }
+
+    /// <summary>
+    /// Cập nhật tài khoản (chỉ SuperAdmin)
+    /// </summary>
+    [HttpPut("users/{id}")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request)
+    {
+        var (ok, error, user) = await _authService.UpdateUserAsync(id, request.FullName, request.Email, request.Role, request.Password);
+        if (!ok)
+            return BadRequest(new { message = error });
+
+        return Ok(new
+        {
+            user!.UserId,
+            user.Username,
+            user.FullName,
+            user.Email,
+            user.Role,
+            message = "Cập nhật tài khoản thành công"
+        });
+    }
+
+    /// <summary>
+    /// Khóa / mở khóa tài khoản (chỉ SuperAdmin)
+    /// </summary>
+    [HttpPut("users/{id}/active")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> SetUserActive(int id, [FromBody] SetUserActiveRequest request)
+    {
+        var currentUserId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+        if (id == currentUserId && !request.IsActive)
+            return BadRequest(new { message = "Không thể khóa tài khoản đang đăng nhập" });
+
+        var success = await _authService.SetUserActiveAsync(id, request.IsActive);
+        if (!success)
+            return NotFound(new { message = "Không tìm thấy tài khoản" });
+
+        return Ok(new { message = request.IsActive ? "Đã mở khóa tài khoản" : "Đã khóa tài khoản" });
+    }
 
     /// <summary>
     /// Đổi mật khẩu
@@ -132,7 +171,6 @@ public async Task<IActionResult> GetAllUsers()
             user.FullName,
             user.Email,
             user.Role,
-            user.LastLoginAt
         });
     }
     
@@ -141,3 +179,5 @@ public async Task<IActionResult> GetAllUsers()
 public record LoginRequest(string Username, string Password);
 public record CreateUserRequest(string Username, string Password, string FullName, string Email, UserRole Role);
 public record ChangePasswordRequest(string OldPassword, string NewPassword);
+public record SetUserActiveRequest(bool IsActive);
+public record UpdateUserRequest(string FullName, string Email, UserRole Role, string? Password);

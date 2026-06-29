@@ -44,8 +44,4 @@ public class DeviceRepository : IDeviceRepository
         return await _context.Devices.AnyAsync(d => d.DeviceId == id);
     }
 
-    public async Task<int> GetOnlineCountAsync()
-    {
-        return await _context.Devices.CountAsync(d => d.Status == DeviceStatus.Online);
-    }
 }

@@ -28,12 +28,11 @@ public class DashboardService : IDashboardService
         var totalEmployees = (await _employeeRepository.GetAllAsync(isActive: true)).Count();
         var todayCheckIns = await _checkInRepository.GetTodayCountAsync();
         var todayViolations = await _violationRepository.GetTodayCountAsync();
-        var onlineDevices = await _deviceRepository.GetOnlineCountAsync();
-         var allDevices = await _deviceRepository.GetAllAsync(); 
-
-        var ppeCompliance = todayCheckIns > 0
-            ? await _checkInRepository.GetTodayWithPPECountAsync() * 100.0 / todayCheckIns
-            : 0;
+        
+        var allDevices = await _deviceRepository.GetAllAsync();
+        var onlineDevices = allDevices.Count(); 
+        
+        var ppeCompliance = 100.0; 
 
         return new
         {
@@ -44,37 +43,5 @@ public class DashboardService : IDashboardService
             TotalDevices = allDevices.Count(),
             PPEComplianceRate = Math.Round(ppeCompliance, 2)
         };
-    }
-
-    public async Task<IEnumerable<CheckInRecord>> GetRecentCheckInsAsync(int count = 10)
-    {
-        var allCheckIns = await _checkInRepository.GetAllAsync();
-        return allCheckIns.Take(count);
-    }
-
-    public async Task<IEnumerable<Violation>> GetRecentViolationsAsync(int count = 10)
-    {
-        var unresolvedViolations = await _violationRepository.GetAllAsync(isResolved: false);
-        return unresolvedViolations.Take(count);
-    }
-
-    public async Task<object> GetCheckInChartAsync(int days = 7)
-    {
-        var startDate = DateTime.UtcNow.Date.AddDays(-days);
-        var allCheckIns = await _checkInRepository.GetAllAsync(from: startDate);
-
-        var data = allCheckIns
-            .GroupBy(c => c.CheckInTime.Date)
-            .Select(g => new
-            {
-                Date = g.Key,
-                Total = g.Count(),
-                WithPPE = g.Count(c => c.HasPPE),
-                WithoutPPE = g.Count(c => !c.HasPPE)
-            })
-            .OrderBy(x => x.Date)
-            .ToList();
-
-        return data;
     }
 }

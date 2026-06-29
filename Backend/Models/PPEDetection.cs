@@ -4,9 +4,6 @@ public class PPEDetection
 {
     public int PPEDetectionId { get; set; }
     public int? CheckInId { get; set; }
-    public int? EmployeeId { get; set; }
-    public DateTime DetectionTime { get; set; } = DateTime.UtcNow;
-    public string? ImageUrl { get; set; }
     public bool HasHelmet { get; set; }
     public bool HasGloves { get; set; }
     public bool HasSafetyVest { get; set; }
@@ -19,6 +16,5 @@ public class PPEDetection
 
     // Navigation
     public CheckInRecord? CheckInRecord { get; set; }
-    public Employee? Employee { get; set; }
     public ICollection<Violation> Violations { get; set; } = new List<Violation>();
 }

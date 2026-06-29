@@ -39,21 +39,8 @@ public class DeviceService : IDeviceService
         if (!await _deviceRepository.ExistsAsync(id))
             return false;
 
-        device.UpdatedAt = DateTime.UtcNow;
+        
         await _deviceRepository.UpdateAsync(device);
-        return true;
-    }
-
-    public async Task<bool> UpdateHeartbeatAsync(int id)
-    {
-        var device = await _deviceRepository.GetByIdAsync(id);
-        if (device == null)
-            return false;
-
-        device.LastHeartbeat = DateTime.UtcNow;
-        device.Status = DeviceStatus.Online;
-        await _deviceRepository.UpdateAsync(device);
-
         return true;
     }
 

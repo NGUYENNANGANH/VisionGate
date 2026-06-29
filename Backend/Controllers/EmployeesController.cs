@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VisionGate.DTOs;
 using VisionGate.Models;
 using VisionGate.Services.Interfaces;
 using System.Text.Json;
@@ -11,18 +13,23 @@ namespace VisionGate.Controllers;
 public class EmployeesController : ControllerBase
 {
     private readonly IEmployeeService _employeeService;
+    private readonly ICloudinaryService _cloudinaryService;
     private readonly IHttpClientFactory _httpClientFactory;
 
-    public EmployeesController(IEmployeeService employeeService, IHttpClientFactory httpClientFactory)
+    public EmployeesController(
+        IEmployeeService employeeService,
+        ICloudinaryService cloudinaryService,
+        IHttpClientFactory httpClientFactory)
     {
         _employeeService = employeeService;
+        _cloudinaryService = cloudinaryService;
         _httpClientFactory = httpClientFactory;
     }
 
     private async Task<byte[]?> GetFaceEmbeddingAsync(string imageUrl)
     {
         var client = _httpClientFactory.CreateClient();
-        var pyServiceUrl = "http://127.0.0.1:5000/api/encode";
+        var pyServiceUrl = "http://127.0.0.1:8000/api/encode";
         var payload = new { url = imageUrl };
         var jsonContent = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
@@ -47,6 +54,30 @@ public class EmployeesController : ControllerBase
             }
         }
         throw new Exception($"Không thể kết nối đến AI Service. HTTP {response.StatusCode}");
+    }
+
+    private string? ExtractPublicIdFromUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return null;
+        try
+        {
+            var uri = new Uri(url);
+            var segments = uri.Segments;
+            var uploadIndex = Array.FindIndex(segments, s => s.TrimEnd('/') == "upload");
+            if (uploadIndex >= 0 && segments.Length > uploadIndex + 1)
+            {
+                var startIndex = uploadIndex + 1;
+                if (segments[startIndex].StartsWith("v") && segments[startIndex].Length > 1 && char.IsDigit(segments[startIndex][1]))
+                {
+                    startIndex++;
+                }
+                var publicIdWithExt = string.Join("", segments.Skip(startIndex));
+                var lastDot = publicIdWithExt.LastIndexOf('.');
+                return lastDot > 0 ? publicIdWithExt.Substring(0, lastDot) : publicIdWithExt;
+            }
+        }
+        catch { }
+        return null;
     }
 
     // GET: api/employees
@@ -86,11 +117,25 @@ public class EmployeesController : ControllerBase
                 }
                 catch (Exception ex)
                 {
+                    var publicId = ExtractPublicIdFromUrl(employee.FaceImageUrl);
+                    if (!string.IsNullOrEmpty(publicId))
+                    {
+                        await _cloudinaryService.DeleteImageAsync(publicId);
+                    }
                     return BadRequest(new { message = $"Ảnh khuôn mặt không hợp lệ: {ex.Message}" });
                 }
             }
 
             var created = await _employeeService.CreateEmployeeAsync(employee);
+            if (!string.IsNullOrEmpty(created.FaceImageUrl) && created.FaceEmbedding != null)
+            {
+                await _employeeService.AddEmployeeFaceAsync(
+                    created.EmployeeId,
+                    created.FaceImageUrl,
+                    created.FaceEmbedding,
+                    isPrimary: true);
+            }
+
             return CreatedAtAction(nameof(GetEmployee), new { id = created.EmployeeId }, created);
         }
         catch (InvalidOperationException ex)
@@ -110,7 +155,8 @@ public class EmployeesController : ControllerBase
                 return NotFound();
 
             // Kiểm tra xem user có đổi ảnh không
-            if (employee.FaceImageUrl != existing.FaceImageUrl)
+            var faceImageChanged = employee.FaceImageUrl != existing.FaceImageUrl;
+            if (faceImageChanged)
             {
                 if (!string.IsNullOrEmpty(employee.FaceImageUrl))
                 {
@@ -120,6 +166,11 @@ public class EmployeesController : ControllerBase
                     }
                     catch (Exception ex)
                     {
+                        var publicId = ExtractPublicIdFromUrl(employee.FaceImageUrl);
+                        if (!string.IsNullOrEmpty(publicId))
+                        {
+                            await _cloudinaryService.DeleteImageAsync(publicId);
+                        }
                         return BadRequest(new { message = $"Ảnh khuôn mặt mới không hợp lệ: {ex.Message}" });
                     }
                 }
@@ -137,6 +188,15 @@ public class EmployeesController : ControllerBase
             var updated = await _employeeService.UpdateEmployeeAsync(id, employee);
             if (!updated)
                 return NotFound();
+
+            if (faceImageChanged && !string.IsNullOrEmpty(employee.FaceImageUrl) && employee.FaceEmbedding != null)
+            {
+                await _employeeService.AddEmployeeFaceAsync(
+                    id,
+                    employee.FaceImageUrl,
+                    employee.FaceEmbedding,
+                    isPrimary: true);
+            }
 
             return NoContent();
         }
@@ -157,74 +217,128 @@ public class EmployeesController : ControllerBase
         return NoContent();
     }
 
-    // GET: api/employees/5/checkins
-    [HttpGet("{id}/checkins")]
-    public async Task<ActionResult<IEnumerable<CheckInRecord>>> GetEmployeeCheckIns(
-        int id,
-        [FromQuery] DateTime? from = null,
-        [FromQuery] DateTime? to = null)
+    // DELETE: api/employees/5/permanent
+    [HttpDelete("{id}/permanent")]
+    public async Task<IActionResult> PermanentDeleteEmployee(int id)
     {
-        var checkIns = await _employeeService.GetEmployeeCheckInsAsync(id, from, to);
-        return Ok(checkIns);
+        try
+        {
+            var deleted = await _employeeService.PermanentDeleteEmployeeAsync(id);
+            if (!deleted)
+                return NotFound();
+
+            return NoContent();
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new { message = "Không thể xóa nhân viên vì đã có dữ liệu lịch sử liên quan." });
+        }
     }
 
-    // POST: api/employees/5/re-encode
-    // Force tạo lại embedding từ ảnh hiện tại (dùng khi migrate model)
-    [HttpPost("{id}/re-encode")]
-    public async Task<IActionResult> ReEncodeFace(int id)
+    // GET: api/employees/registered-faces
+    [HttpGet("registered-faces")]
+    public async Task<ActionResult<IEnumerable<RegisteredFaceDto>>> GetRegisteredFaces()
     {
-        var existing = await _employeeService.GetEmployeeByIdAsync(id);
-        if (existing == null)
+        var faces = await _employeeService.GetActiveEmployeeFacesAsync();
+        return Ok(faces.Select(face => new RegisteredFaceDto
+        {
+            FaceId = face.Id,
+            EmployeeId = face.EmployeeId,
+            FullName = face.Employee?.FullName ?? string.Empty,
+            FaceEmbedding = face.FaceEmbedding
+        }));
+    }
+
+    // GET: api/employees/5/faces
+    [HttpGet("{id}/faces")]
+    public async Task<ActionResult<IEnumerable<EmployeeFaceDto>>> GetEmployeeFaces(int id)
+    {
+        if (!await _employeeService.EmployeeExistsAsync(id))
             return NotFound();
 
-        if (string.IsNullOrEmpty(existing.FaceImageUrl))
-            return BadRequest(new { message = "Nhân viên chưa có ảnh khuôn mặt." });
+        var faces = await _employeeService.GetEmployeeFacesAsync(id);
+        return Ok(faces.Select(ToFaceDto));
+    }
+
+    // POST: api/employees/5/faces
+    [HttpPost("{id}/faces")]
+    public async Task<ActionResult<EmployeeFaceDto>> AddEmployeeFace(int id, CreateEmployeeFaceRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.FaceImageUrl))
+            return BadRequest(new { message = "Face image URL is required." });
+
+        if (!await _employeeService.EmployeeExistsAsync(id))
+            return NotFound();
 
         try
         {
-            existing.FaceEmbedding = await GetFaceEmbeddingAsync(existing.FaceImageUrl);
-            var updated = await _employeeService.UpdateEmployeeAsync(id, existing);
-            if (!updated)
-                return StatusCode(500, new { message = "Không thể cập nhật embedding." });
+            var embedding = await GetFaceEmbeddingAsync(request.FaceImageUrl);
+            if (embedding == null)
+            {
+                if (!string.IsNullOrEmpty(request.CloudinaryPublicId))
+                {
+                    await _cloudinaryService.DeleteImageAsync(request.CloudinaryPublicId);
+                }
+                else
+                {
+                    var publicId = ExtractPublicIdFromUrl(request.FaceImageUrl);
+                    if (!string.IsNullOrEmpty(publicId)) await _cloudinaryService.DeleteImageAsync(publicId);
+                }
+                return BadRequest(new { message = "Cannot extract face embedding." });
+            }
 
-            return Ok(new { message = $"Re-encode thành công cho nhân viên #{id}.", dim = existing.FaceEmbedding?.Length / sizeof(float) });
+            var face = await _employeeService.AddEmployeeFaceAsync(
+                id,
+                request.FaceImageUrl,
+                embedding,
+                request.IsPrimary,
+                request.CloudinaryPublicId,
+                request.Angle);
+            return CreatedAtAction(nameof(GetEmployeeFaces), new { id }, ToFaceDto(face));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = $"Lỗi encode khuôn mặt: {ex.Message}" });
+            if (!string.IsNullOrEmpty(request.CloudinaryPublicId))
+            {
+                await _cloudinaryService.DeleteImageAsync(request.CloudinaryPublicId);
+            }
+            else
+            {
+                var publicId = ExtractPublicIdFromUrl(request.FaceImageUrl);
+                if (!string.IsNullOrEmpty(publicId)) await _cloudinaryService.DeleteImageAsync(publicId);
+            }
+            return BadRequest(new { message = $"Ảnh khuôn mặt không hợp lệ: {ex.Message}" });
         }
     }
 
-    // POST: api/employees/re-encode-all
-    // Force tạo lại embedding cho TẤT CẢ nhân viên
-    [HttpPost("re-encode-all")]
-    public async Task<IActionResult> ReEncodeAll()
+    // DELETE: api/employees/5/faces/10
+    [HttpDelete("{id}/faces/{faceId}")]
+    public async Task<IActionResult> DeleteEmployeeFace(int id, int faceId)
     {
-        var employees = await _employeeService.GetAllEmployeesAsync(null, null);
-        int success = 0, fail = 0;
-        var errors = new List<string>();
+        var deletedFace = await _employeeService.DeleteEmployeeFaceAsync(id, faceId);
+        if (deletedFace == null)
+            return NotFound();
 
-        foreach (var emp in employees)
+        await _cloudinaryService.DeleteImageAsync(deletedFace.CloudinaryPublicId);
+
+        return NoContent();
+    }
+
+    private static EmployeeFaceDto ToFaceDto(EmployeeFace face)
+    {
+        return new EmployeeFaceDto
         {
-            if (string.IsNullOrEmpty(emp.FaceImageUrl))
-            {
-                fail++;
-                continue;
-            }
-
-            try
-            {
-                emp.FaceEmbedding = await GetFaceEmbeddingAsync(emp.FaceImageUrl);
-                await _employeeService.UpdateEmployeeAsync(emp.EmployeeId, emp);
-                success++;
-            }
-            catch (Exception ex)
-            {
-                fail++;
-                errors.Add($"ID {emp.EmployeeId}: {ex.Message}");
-            }
-        }
-
-        return Ok(new { success, fail, errors });
+            Id = face.Id,
+            EmployeeId = face.EmployeeId,
+            FaceImageUrl = face.FaceImageUrl,
+            CloudinaryPublicId = face.CloudinaryPublicId,
+            IsPrimary = face.IsPrimary,
+            Angle = face.Angle,
+            CreatedAt = face.CreatedAt
+        };
     }
 }

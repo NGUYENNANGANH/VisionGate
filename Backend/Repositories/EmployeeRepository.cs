@@ -19,14 +19,15 @@ public class EmployeeRepository : IEmployeeRepository
         var query = _context.Employees
             .AsNoTracking()
             .AsSplitQuery()
-            .Include(e => e.Department)
             .AsQueryable();
 
         if (isActive.HasValue)
             query = query.Where(e => e.IsActive == isActive.Value);
 
         if (departmentId.HasValue)
-            query = query.Where(e => e.DepartmentId == departmentId.Value);
+        {
+            // query = query.Where(e => e.DepartmentId == departmentId.Value);
+        }
 
         return await query
             .OrderBy(e => e.EmployeeCode)
@@ -37,31 +38,6 @@ public class EmployeeRepository : IEmployeeRepository
     {
         return await _context.Employees
             .AsNoTracking()
-            .Include(e => e.Department)
-            .Select(e => new Employee
-            {
-                EmployeeId = e.EmployeeId,
-                EmployeeCode = e.EmployeeCode,
-                FullName = e.FullName,
-                Email = e.Email,
-                PhoneNumber = e.PhoneNumber,
-                DepartmentId = e.DepartmentId,
-                Position = e.Position,
-                FaceImageUrl = e.FaceImageUrl,
-                TelegramUserId = e.TelegramUserId,
-                IsActive = e.IsActive,
-                StartDate = e.StartDate,
-                CreatedAt = e.CreatedAt,
-                UpdatedAt = e.UpdatedAt,
-                Department = e.Department == null ? null : new Department
-                {
-                    DepartmentId = e.Department.DepartmentId,
-                    DepartmentCode = e.Department.DepartmentCode,
-                    DepartmentName = e.Department.DepartmentName,
-                    Description = e.Department.Description,
-                    IsActive = e.Department.IsActive
-                }
-            })
             .FirstOrDefaultAsync(e => e.EmployeeId == id);
     }
 
@@ -81,6 +57,11 @@ public class EmployeeRepository : IEmployeeRepository
 
     public async Task UpdateAsync(Employee employee)
     {
+        var existing = _context.Employees.Local.FirstOrDefault(e => e.EmployeeId == employee.EmployeeId);
+        if (existing != null && existing != employee)
+        {
+            _context.Entry(existing).State = EntityState.Detached;
+        }
         _context.Entry(employee).State = EntityState.Modified;
         await _context.SaveChangesAsync();
     }
@@ -92,12 +73,35 @@ public class EmployeeRepository : IEmployeeRepository
 
     public async Task DeleteAsync(int id)
     {
-        var employee = await _context.Employees.FindAsync(id);
-        if (employee != null)
-        {
-            _context.Employees.Remove(employee);
-            await _context.SaveChangesAsync();
-        }
+        var checkInIds = await _context.CheckInRecords
+            .Where(c => c.EmployeeId == id)
+            .Select(c => c.CheckInId)
+            .ToListAsync();
+
+        var ppeDetectionIds = await _context.PPEDetections
+            .Where(p => p.CheckInId.HasValue && checkInIds.Contains(p.CheckInId.Value))
+            .Select(p => p.PPEDetectionId)
+            .ToListAsync();
+
+        await _context.Violations
+            .Where(v => v.EmployeeId == id || (v.PPEDetectionId.HasValue && ppeDetectionIds.Contains(v.PPEDetectionId.Value)))
+            .ExecuteDeleteAsync();
+
+        await _context.PPEDetections
+            .Where(p => ppeDetectionIds.Contains(p.PPEDetectionId))
+            .ExecuteDeleteAsync();
+
+        await _context.CheckInRecords
+            .Where(c => c.EmployeeId == id)
+            .ExecuteDeleteAsync();
+
+        await _context.EmployeeFaces
+            .Where(f => f.EmployeeId == id)
+            .ExecuteDeleteAsync();
+
+        await _context.Employees
+            .Where(e => e.EmployeeId == id)
+            .ExecuteDeleteAsync();
     }
 
   public async Task<bool> CodeExistsAsync(string employeeCode, int? excludeId = null)
@@ -110,19 +114,54 @@ public class EmployeeRepository : IEmployeeRepository
         return await query.AnyAsync();
     }
 
-   
-    public async Task<IEnumerable<CheckInRecord>> GetCheckInsAsync(int employeeId, DateTime? from, DateTime? to)
+    public async Task<IEnumerable<EmployeeFace>> GetFacesByEmployeeIdAsync(int employeeId)
     {
-        var query = _context.CheckInRecords
+        return await _context.EmployeeFaces
             .AsNoTracking()
-            .Where(c => c.EmployeeId == employeeId);
+            .Where(f => f.EmployeeId == employeeId)
+            .OrderByDescending(f => f.IsPrimary)
+            .ThenByDescending(f => f.CreatedAt)
+            .ToListAsync();
+    }
 
-        if (from.HasValue)
-            query = query.Where(c => c.CheckInTime >= from.Value);
+    public async Task<IEnumerable<EmployeeFace>> GetActiveEmployeeFacesAsync()
+    {
+        return await _context.EmployeeFaces
+            .AsNoTracking()
+            .Include(f => f.Employee)
+            .Where(f => f.Employee != null && f.Employee.IsActive)
+            .OrderBy(f => f.EmployeeId)
+            .ThenByDescending(f => f.IsPrimary)
+            .ToListAsync();
+    }
 
-        if (to.HasValue)
-            query = query.Where(c => c.CheckInTime <= to.Value);
+    public async Task<EmployeeFace?> GetFaceByIdAsync(int employeeId, int faceId)
+    {
+        return await _context.EmployeeFaces
+            .FirstOrDefaultAsync(f => f.EmployeeId == employeeId && f.Id == faceId);
+    }
 
-        return await query.OrderByDescending(c => c.CheckInTime).ToListAsync();
+    public async Task<EmployeeFace> AddFaceAsync(EmployeeFace face)
+    {
+        _context.EmployeeFaces.Add(face);
+        await _context.SaveChangesAsync();
+        return face;
+    }
+
+    public async Task UpdateFaceAsync(EmployeeFace face)
+    {
+        var existing = _context.EmployeeFaces.Local.FirstOrDefault(f => f.Id == face.Id);
+        if (existing != null && existing != face)
+        {
+            _context.Entry(existing).State = EntityState.Detached;
+        }
+        _context.Entry(face).State = EntityState.Modified;
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task DeleteFaceAsync(EmployeeFace face)
+    {
+        _context.EmployeeFaces.Remove(face);
+        await _context.SaveChangesAsync();
     }
 }

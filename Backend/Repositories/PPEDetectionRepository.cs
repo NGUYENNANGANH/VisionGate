@@ -17,7 +17,7 @@ public class PPEDetectionRepository : IPPEDetectionRepository
     public async Task<PPEDetection?> GetByIdAsync(int id)
     {
         return await _context.PPEDetections
-            .Include(p => p.Employee)
+            .Include(p => p.CheckInRecord).ThenInclude(c => c.Employee)
             .Include(p => p.CheckInRecord)
             .FirstOrDefaultAsync(p => p.PPEDetectionId == id);
     }

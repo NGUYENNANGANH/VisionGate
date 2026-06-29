@@ -35,46 +35,10 @@ public class CheckInsController : ControllerBase
     public async Task<ActionResult<IEnumerable<CheckInRecord>>> GetCheckIns(
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
-        [FromQuery] int? employeeId = null,
-        [FromQuery] CheckInStatus? status = null)
+        [FromQuery] int? employeeId = null)
     {
-        var checkIns = await _checkInService.GetCheckInsAsync(from, to, employeeId, status);
+        var checkIns = await _checkInService.GetCheckInsAsync(from, to, employeeId);
         return Ok(checkIns);
-    }
-
-    // GET: api/checkins/5
-    [HttpGet("{id}")]
-    public async Task<ActionResult<CheckInRecord>> GetCheckIn(int id)
-    {
-        var checkIn = await _checkInService.GetCheckInByIdAsync(id);
-
-        if (checkIn == null)
-            return NotFound();
-
-        return checkIn;
-    }
-
-    // POST: api/checkins
-    [HttpPost]
-    public async Task<ActionResult<CheckInRecord>> CreateCheckIn(CheckInRecord checkIn)
-    {
-        try
-        {
-            var created = await _checkInService.CreateCheckInAsync(checkIn);
-            return CreatedAtAction(nameof(GetCheckIn), new { id = created.CheckInId }, created);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
-    }
-
-    // GET: api/checkins/today
-    [HttpGet("today")]
-    public async Task<ActionResult<object>> GetTodayStats()
-    {
-        var stats = await _checkInService.GetTodayStatsAsync();
-        return Ok(stats);
     }
 
     // POST: api/checkins/ai-process
@@ -92,15 +56,14 @@ public class CheckInsController : ControllerBase
                 CheckInImageUrl = request.CheckInImageUrl,
                 FaceConfidence = request.FaceConfidence,
                 CheckInTime = DateTimeHelper.VietnamNow(),
-                Status = CheckInStatus.Success
-            };
+                            };
 
-            // 2. Create PPEDetection
+            var createdCheckIn = await _checkInService.CreateCheckInAsync(checkIn);
+
+            // 2. Create PPEDetection linked to CheckIn
             var ppeDetection = new PPEDetection
             {
-                EmployeeId = request.EmployeeId,
-                DetectionTime = DateTimeHelper.VietnamNow(),
-                ImageUrl = request.CheckInImageUrl,
+                CheckInId = createdCheckIn.CheckInId,
                 HasHelmet = request.HasHelmet,
                 HasGloves = request.HasGloves,
                 HasSafetyVest = request.HasSafetyVest,
@@ -113,41 +76,24 @@ public class CheckInsController : ControllerBase
             };
 
             await _ppeDetectionRepository.AddAsync(ppeDetection);
-
-            // 3. Link PPE to CheckIn
-            checkIn.PPEDetectionId = ppeDetection.PPEDetectionId;
-            checkIn.HasPPE = ppeDetection.OverallCompliance;
-
-            var createdCheckIn = await _checkInService.CreateCheckInAsync(checkIn);
-            Console.WriteLine($"✅ CheckIn created - Status: {createdCheckIn.Status} (HasPPE: {createdCheckIn.HasPPE})");
             // 4. Create Violations if needed
             var violationIds = new List<int>();
             var violations = new List<Violation>();
 
             if (!request.HasHelmet)
-                violations.Add(CreateViolation(request.EmployeeId, createdCheckIn.CheckInId, 
-                    ppeDetection.PPEDetectionId, ViolationType.MissingHelmet, Severity.Critical, 
-                    "Thiếu mũ bảo hộ", request.CheckInImageUrl));
+                violations.Add(CreateViolation(request.EmployeeId, ppeDetection.PPEDetectionId, ViolationType.MissingHelmet));
 
             if (!request.HasSafetyVest)
-                violations.Add(CreateViolation(request.EmployeeId, createdCheckIn.CheckInId, 
-                    ppeDetection.PPEDetectionId, ViolationType.MissingSafetyVest, Severity.High, 
-                    "Thiếu áo phản quang", request.CheckInImageUrl));
+                violations.Add(CreateViolation(request.EmployeeId, ppeDetection.PPEDetectionId, ViolationType.MissingSafetyVest));
 
             if (!request.HasGloves)
-                violations.Add(CreateViolation(request.EmployeeId, createdCheckIn.CheckInId, 
-                    ppeDetection.PPEDetectionId, ViolationType.MissingGloves, Severity.Medium, 
-                    "Thiếu găng tay bảo hộ", request.CheckInImageUrl));
+                violations.Add(CreateViolation(request.EmployeeId, ppeDetection.PPEDetectionId, ViolationType.MissingGloves));
 
             if (!request.HasSafetyBoots)
-                violations.Add(CreateViolation(request.EmployeeId, createdCheckIn.CheckInId, 
-                    ppeDetection.PPEDetectionId, ViolationType.MissingSafetyBoots, Severity.Medium, 
-                    "Thiếu giày bảo hộ", request.CheckInImageUrl));
+                violations.Add(CreateViolation(request.EmployeeId, ppeDetection.PPEDetectionId, ViolationType.MissingSafetyBoots));
 
             if (!request.HasMask)
-                violations.Add(CreateViolation(request.EmployeeId, createdCheckIn.CheckInId, 
-                    ppeDetection.PPEDetectionId, ViolationType.MissingMask, Severity.Low, 
-                    "Thiếu khẩu trang", request.CheckInImageUrl));
+                violations.Add(CreateViolation(request.EmployeeId, ppeDetection.PPEDetectionId, ViolationType.MissingMask));
 
             foreach (var violation in violations)
             {
@@ -190,8 +136,6 @@ public class CheckInsController : ControllerBase
                     {
                         v.ViolationId,
                         v.ViolationType,
-                        v.Severity,
-                        v.Description
                     })
                 });
             }
@@ -204,20 +148,14 @@ public class CheckInsController : ControllerBase
         }
     }
 
-    private Violation CreateViolation(int employeeId, int checkInId, int ppeDetectionId, 
-        ViolationType type, Severity severity, string description, string? imageUrl)
+    private Violation CreateViolation(int employeeId, int ppeDetectionId, ViolationType type)
     {
         return new Violation
         {
             EmployeeId = employeeId,
-            CheckInId = checkInId,
             PPEDetectionId = ppeDetectionId,
             ViolationType = type,
-            Severity = severity,
-            Description = description,
-            ImageUrl = imageUrl,
             IsResolved = false,
-            NotificationSent = false,
             CreatedAt = DateTime.UtcNow
         };
     }

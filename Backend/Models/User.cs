@@ -16,13 +16,7 @@ public class User
     public string Email { get; set; } = string.Empty;
     public UserRole Role { get; set; } = UserRole.Viewer;
     public bool IsActive { get; set; } = true;
-    public DateTime? LastLoginAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime? UpdatedAt { get; set; }
-    
-    // Password Reset
-    public string? PasswordResetToken { get; set; }
-    public DateTime? PasswordResetTokenExpiry { get; set; }
 
     // Navigation
     public ICollection<Violation> ResolvedViolations { get; set; } = new List<Violation>();

@@ -53,15 +53,4 @@ public class DevicesController : ControllerBase
 
         return NoContent();
     }
-
-    // PUT: api/devices/5/heartbeat
-    [HttpPut("{id}/heartbeat")]
-    public async Task<IActionResult> UpdateHeartbeat(int id)
-    {
-        var updated = await _deviceService.UpdateHeartbeatAsync(id);
-        if (!updated)
-            return NotFound();
-
-        return NoContent();
-    }
 }

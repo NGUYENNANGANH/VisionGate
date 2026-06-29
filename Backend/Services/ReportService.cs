@@ -20,7 +20,7 @@ public class ReportService : IReportService
     {
         var query = _context.CheckInRecords
             .Include(c => c.Employee)
-            .ThenInclude(e => e.Department)
+                .ThenInclude(e => e.ShiftConfig)
             .AsQueryable();
 
         if (request.FromDate.HasValue)
@@ -32,16 +32,6 @@ public class ReportService : IReportService
         if (request.EmployeeId.HasValue)
             query = query.Where(c => c.EmployeeId == request.EmployeeId.Value);
 
-        if (request.DepartmentId.HasValue)
-            query = query.Where(c => c.Employee.DepartmentId == request.DepartmentId.Value);
-
-        // Dữ liệu cài đặt ca làm mặc định
-        var startTimeStr = await _context.Settings.Where(s => s.Key == "Shift:StartTime").Select(s => s.Value).FirstOrDefaultAsync() ?? "08:00";
-        var endTimeStr = await _context.Settings.Where(s => s.Key == "Shift:EndTime").Select(s => s.Value).FirstOrDefaultAsync() ?? "17:00";
-        
-        if (!TimeOnly.TryParse(startTimeStr, out var shiftStart)) shiftStart = new TimeOnly(8, 0);
-        if (!TimeOnly.TryParse(endTimeStr, out var shiftEnd)) shiftEnd = new TimeOnly(17, 0);
-
         var checkIns = await query
             .OrderByDescending(c => c.CheckInTime)
             .ToListAsync();
@@ -52,6 +42,10 @@ public class ReportService : IReportService
             {
                 var inTime = g.Min(c => TimeOnly.FromDateTime(c.CheckInTime));
                 var outTime = g.Max(c => TimeOnly.FromDateTime(c.CheckInTime));
+                
+                var shift = g.First().Employee.ShiftConfig;
+                var shiftStart = shift?.StartTime ?? new TimeOnly(8, 0);
+                var shiftEnd = shift?.EndTime ?? new TimeOnly(17, 0);
                 
                 // Nếu quyét duy nhất 1 lần, hoặc lần quét sau cách lần quét đầu < 1 phút thì coi như quên Check-Out (giảm từ 5 phút xuống 1 phút để dễ test)
                 bool isMissingCheckOut = g.Count() == 1 || (outTime - inTime).TotalMinutes < 1; 
@@ -69,14 +63,12 @@ public class ReportService : IReportService
                     EmployeeId = g.Key.EmployeeId,
                     EmployeeName = g.First().Employee.FullName,
                     EmployeeCode = g.First().Employee.EmployeeCode,
-                    Department = g.First().Employee.Department?.DepartmentName,
                     Date = g.Key.Date,
                     CheckInTime = inTime,
                     CheckOutTime = isMissingCheckOut ? null as TimeOnly? : outTime,
                     LateMinutes = lateMins,
                     EarlyLeaveMinutes = earlyMins,
                     TotalCheckIns = g.Count(),
-                    HasViolations = g.Any(c => c.Violations.Any()),
                     Status = isMissingCheckOut ? "Thiếu Check-out" : (lateMins > 0 || earlyMins > 0 ? "Đi muộn/Về sớm" : "Đúng giờ")
                 };
             })
@@ -89,73 +81,6 @@ public class ReportService : IReportService
             FromDate = request.FromDate,
             ToDate = request.ToDate,
             Data = grouped
-        };
-    }
-
-    public async Task<object> GetViolationReportAsync(ViolationReportRequest request)
-    {
-        var query = _context.Violations
-            .Include(v => v.Employee)
-            .ThenInclude(e => e.Department)
-            .Include(v => v.CheckInRecord)
-            .Include(v => v.PPEDetection)
-            .AsQueryable();
-
-        if (request.FromDate.HasValue)
-            query = query.Where(v => v.CreatedAt >= request.FromDate.Value);
-
-        if (request.ToDate.HasValue)
-            query = query.Where(v => v.CreatedAt < request.ToDate.Value.AddDays(1));
-
-        if (request.EmployeeId.HasValue)
-            query = query.Where(v => v.EmployeeId == request.EmployeeId.Value);
-
-        if (request.DepartmentId.HasValue)
-            query = query.Where(v => v.Employee.DepartmentId == request.DepartmentId.Value);
-
-        if (request.Severity.HasValue)
-            query = query.Where(v => (int)v.Severity == request.Severity.Value);
-
-        if (request.IsResolved.HasValue)
-            query = query.Where(v => v.IsResolved == request.IsResolved.Value);
-
-        var violations = await query
-            .OrderByDescending(v => v.CreatedAt)
-            .Select(v => new
-            {
-                v.ViolationId,
-                v.EmployeeId,
-                EmployeeName = v.Employee.FullName,
-                EmployeeCode = v.Employee.EmployeeCode,
-                Department = v.Employee.Department != null ? v.Employee.Department.DepartmentName : null,
-                v.ViolationType,
-                v.Severity,
-                v.Description,
-                v.ImageUrl,
-                v.IsResolved,
-                v.ResolvedAt,
-                v.NotificationSent,
-                v.CreatedAt
-            })
-            .ToListAsync();
-
-        var summary = new
-        {
-            Total = violations.Count,
-            Resolved = violations.Count(v => v.IsResolved),
-            Pending = violations.Count(v => !v.IsResolved),
-            Critical = violations.Count(v => v.Severity == Severity.Critical),
-            High = violations.Count(v => v.Severity == Severity.High),
-            Medium = violations.Count(v => v.Severity == Severity.Medium),
-            Low = violations.Count(v => v.Severity == Severity.Low)
-        };
-
-        return new
-        {
-            Summary = summary,
-            FromDate = request.FromDate,
-            ToDate = request.ToDate,
-            Data = violations
         };
     }
 
@@ -189,7 +114,7 @@ public class ReportService : IReportService
     {
         var query = _context.CheckInRecords
             .Include(c => c.Employee)
-            .ThenInclude(e => e.Department)
+                .ThenInclude(e => e.ShiftConfig)
             .AsQueryable();
 
         if (request.FromDate.HasValue)
@@ -201,16 +126,6 @@ public class ReportService : IReportService
         if (request.EmployeeId.HasValue)
             query = query.Where(c => c.EmployeeId == request.EmployeeId.Value);
 
-        if (request.DepartmentId.HasValue)
-            query = query.Where(c => c.Employee.DepartmentId == request.DepartmentId.Value);
-
-        // Dữ liệu cài đặt ca làm mặc định
-        var startTimeStr = await _context.Settings.Where(s => s.Key == "Shift:StartTime").Select(s => s.Value).FirstOrDefaultAsync() ?? "08:00";
-        var endTimeStr = await _context.Settings.Where(s => s.Key == "Shift:EndTime").Select(s => s.Value).FirstOrDefaultAsync() ?? "17:00";
-
-        if (!TimeOnly.TryParse(startTimeStr, out var shiftStart)) shiftStart = new TimeOnly(8, 0);
-        if (!TimeOnly.TryParse(endTimeStr, out var shiftEnd)) shiftEnd = new TimeOnly(17, 0);
-
         var checkIns = await query
             .OrderByDescending(c => c.CheckInTime)
             .ToListAsync();
@@ -221,6 +136,11 @@ public class ReportService : IReportService
             {
                 var inTime = g.Min(c => TimeOnly.FromDateTime(c.CheckInTime));
                 var outTime = g.Max(c => TimeOnly.FromDateTime(c.CheckInTime));
+                
+                var shift = g.First().Employee.ShiftConfig;
+                var shiftStart = shift?.StartTime ?? new TimeOnly(8, 0);
+                var shiftEnd = shift?.EndTime ?? new TimeOnly(17, 0);
+
                 bool isMissingCheckOut = g.Count() == 1 || (outTime - inTime).TotalMinutes < 1;
 
                 int lateMins = inTime > shiftStart ? (int)(inTime - shiftStart).TotalMinutes : 0;
@@ -234,7 +154,6 @@ public class ReportService : IReportService
                 {
                     EmployeeCode = g.First().Employee.EmployeeCode,
                     EmployeeName = g.First().Employee.FullName,
-                    Department = g.First().Employee.Department?.DepartmentName,
                     Date = g.Key.Date,
                     CheckInTime = inTime,
                     CheckOutTime = isMissingCheckOut ? null as TimeOnly? : outTime,
@@ -252,8 +171,7 @@ public class ReportService : IReportService
             var search = request.SearchText.ToLower();
             grouped = grouped.Where(x => 
                 (x.EmployeeName != null && x.EmployeeName.ToLower().Contains(search)) ||
-                (x.EmployeeCode != null && x.EmployeeCode.ToLower().Contains(search)) ||
-                (x.Department != null && x.Department.ToLower().Contains(search))
+                (x.EmployeeCode != null && x.EmployeeCode.ToLower().Contains(search))
             ).ToList();
         }
 
@@ -275,7 +193,7 @@ public class ReportService : IReportService
             ws.Cell(row, 1).Value = i + 1;
             ws.Cell(row, 2).Value = item.EmployeeCode;
             ws.Cell(row, 3).Value = item.EmployeeName;
-            ws.Cell(row, 4).Value = item.Department ?? "";
+            ws.Cell(row, 4).Value = "";
             ws.Cell(row, 5).Value = item.Date.ToString("dd/MM/yyyy");
             ws.Cell(row, 6).Value = item.CheckInTime.ToString("HH:mm");
             ws.Cell(row, 7).Value = item.CheckOutTime?.ToString("HH:mm") ?? "";
@@ -295,7 +213,6 @@ public class ReportService : IReportService
     {
         var query = _context.Violations
             .Include(v => v.Employee)
-            .ThenInclude(e => e.Department)
             .AsQueryable();
 
         if (request.FromDate.HasValue)
@@ -304,22 +221,13 @@ public class ReportService : IReportService
         if (request.ToDate.HasValue)
             query = query.Where(v => v.CreatedAt < request.ToDate.Value.AddDays(1));
 
-        if (request.EmployeeId.HasValue)
-            query = query.Where(v => v.EmployeeId == request.EmployeeId.Value);
-
-        if (request.DepartmentId.HasValue)
-            query = query.Where(v => v.Employee.DepartmentId == request.DepartmentId.Value);
-
         var violations = await query
             .OrderByDescending(v => v.CreatedAt)
             .Select(v => new
             {
-                EmployeeCode = v.Employee.EmployeeCode,
-                EmployeeName = v.Employee.FullName,
-                Department = v.Employee.Department != null ? v.Employee.Department.DepartmentName : "",
+                EmployeeCode = v.Employee != null ? v.Employee.EmployeeCode : "N/A",
+                EmployeeName = v.Employee != null ? v.Employee.FullName : "N/A",
                 v.ViolationType,
-                v.Severity,
-                v.Description,
                 v.IsResolved,
                 v.CreatedAt
             })
@@ -340,14 +248,12 @@ public class ReportService : IReportService
         {
             var row = i + 2;
             var item = violations[i];
-            ws.Cell(row, 1).Value = i + 1;
             ws.Cell(row, 2).Value = item.EmployeeCode;
             ws.Cell(row, 3).Value = item.EmployeeName;
-            ws.Cell(row, 4).Value = item.Department;
+            ws.Cell(row, 4).Value = "";
             ws.Cell(row, 5).Value = item.ViolationType.ToString();
-            ws.Cell(row, 6).Value = item.Severity.ToString();
-            ws.Cell(row, 7).Value = item.Description;
-            ws.Cell(row, 8).Value = item.IsResolved ? "Đã xử lý" : "Chưa xử lý";
+            ws.Cell(row, 6).Value = "N/A";
+                        ws.Cell(row, 8).Value = item.IsResolved ? "Đã xử lý" : "Chưa xử lý";
             ws.Cell(row, 9).Value = item.CreatedAt.ToString("dd/MM/yyyy HH:mm");
 
             // Thin borders for data rows
@@ -367,8 +273,6 @@ public class ReportService : IReportService
 
         var violationsQuery = _context.Violations
             .Include(v => v.Employee)
-            .Include(v => v.CheckInRecord)
-                .ThenInclude(c => c.Device)
             .Where(v => !v.IsResolved)
             .AsQueryable();
 
@@ -393,25 +297,22 @@ public class ReportService : IReportService
 
         foreach (var item in checkIns)
         {
-            var statusStr = item.Status == CheckInStatus.Success || (int)item.Status == 0 ? "ĐIỂM DANH" : (item.Status == CheckInStatus.Warning || (int)item.Status == 2 ? "CẢNH BÁO" : "THẤT BẠI");
-            logs.Add(new AccessLogExportDto {
+                        logs.Add(new AccessLogExportDto {
                 Time = item.CheckInTime,
                 EmployeeName = item.Employee?.FullName ?? "Khách lạ",
                 EmployeeCode = item.Employee?.EmployeeCode ?? "",
                 Location = item.Device?.Location ?? "Unknown",
-                Status = statusStr
             });
         }
 
         foreach (var item in violations)
         {
-            var statusStr = (int)item.ViolationType == 5 ? "TRÁI PHÉP" : "VI PHẠM";
             logs.Add(new AccessLogExportDto {
                 Time = item.CreatedAt,
-                EmployeeName = item.Employee?.FullName ?? "Khách lạ",
-                EmployeeCode = item.Employee?.EmployeeCode ?? "",
-                Location = item.CheckInRecord?.Device?.Location ?? "Unknown",
-                Status = statusStr
+                EmployeeName = item.Employee?.FullName ?? "N/A",
+                EmployeeCode = item.Employee?.EmployeeCode ?? "N/A",
+                Location = "Unknown",
+                Status = item.ViolationType.ToString()
             });
         }
 
@@ -481,70 +382,6 @@ public class ReportService : IReportService
         headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
     }
 
-    public async Task<object> GetEmployeeHistoryAsync(int employeeId, DateTime? from, DateTime? to)
-    {
-        var employee = await _context.Employees
-            .Include(e => e.Department)
-            .FirstOrDefaultAsync(e => e.EmployeeId == employeeId);
-
-        if (employee == null)
-            throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
-
-        var checkInsQuery = _context.CheckInRecords
-            .Where(c => c.EmployeeId == employeeId);
-
-        var violationsQuery = _context.Violations
-            .Where(v => v.EmployeeId == employeeId);
-
-        if (from.HasValue)
-        {
-            checkInsQuery = checkInsQuery.Where(c => c.CheckInTime >= from.Value);
-            violationsQuery = violationsQuery.Where(v => v.CreatedAt >= from.Value);
-        }
-
-        if (to.HasValue)
-        {
-            checkInsQuery = checkInsQuery.Where(c => c.CheckInTime <= to.Value);
-            violationsQuery = violationsQuery.Where(v => v.CreatedAt <= to.Value);
-        }
-
-        var checkIns = await checkInsQuery
-            .OrderByDescending(c => c.CheckInTime)
-            .Take(100)
-            .ToListAsync();
-
-        var violations = await violationsQuery
-            .OrderByDescending(v => v.CreatedAt)
-            .Take(50)
-            .ToListAsync();
-
-        return new
-        {
-            Employee = new
-            {
-                employee.EmployeeId,
-                employee.EmployeeCode,
-                employee.FullName,
-                employee.Email,
-                employee.Position,
-                Department = employee.Department?.DepartmentName,
-                employee.IsActive
-            },
-            CheckInHistory = new
-            {
-                Total = checkIns.Count,
-                Data = checkIns
-            },
-            ViolationHistory = new
-            {
-                Total = violations.Count,
-                Data = violations
-            },
-            FromDate = from,
-            ToDate = to
-        };
-    }
-
     public async Task<bool> DeleteAttendanceAsync(int employeeId, DateOnly date)
     {
         var startOfDay = date.ToDateTime(TimeOnly.MinValue);
@@ -594,8 +431,7 @@ public class ReportService : IReportService
                     EmployeeId = request.EmployeeId, 
                     CheckInTime = newInTime,
                     FaceConfidence = 100,
-                    Status = CheckInStatus.Success
-                };
+                                    };
                 _context.CheckInRecords.Add(firstRecord);
             }
             else
@@ -614,8 +450,7 @@ public class ReportService : IReportService
                     EmployeeId = request.EmployeeId, 
                     CheckInTime = newOutTime,
                     FaceConfidence = 100,
-                    Status = CheckInStatus.Success
-                };
+                                    };
                 _context.CheckInRecords.Add(lastRecord);
             }
             else
