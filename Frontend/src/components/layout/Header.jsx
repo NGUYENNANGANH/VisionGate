@@ -27,8 +27,6 @@ function Header({ onLogout }) {
 
       <div style={{ flex: 1 }} />
 
-      <ConnectionStatus />
-
       <button className="icon-btn" title="Thông báo">
         <Icon name="bell" size={18} />
         <span className="dot" />

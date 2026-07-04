@@ -5,6 +5,7 @@ import { authService } from "../services/authService";
 import api from "../services/api";
 import Sidebar from "../components/layout/Sidebar";
 import Header from "../components/layout/Header";
+import { Icon } from "../components/ui/Icon";
 import "./AdminUsersPage.css";
 
 const getAvatarStyle = (name) => {
@@ -23,11 +24,12 @@ function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [confirmTarget, setConfirmTarget] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [formData, setFormData] = useState({
-    username: "", password: "", fullName: "", email: "", role: 1,
+    username: "", password: "", fullName: "", email: "", role: "Admin",
   });
   const navigate = useNavigate();
 
@@ -49,7 +51,8 @@ function AdminUsersPage() {
 
   const handleAdd = () => {
     setSelectedUser(null);
-    setFormData({ username: "", password: "", fullName: "", email: "", role: 1 });
+    setFormData({ username: "", password: "", fullName: "", email: "", role: "Admin" });
+    setShowPassword(false);
     setShowModal(true);
   };
 
@@ -168,13 +171,20 @@ function AdminUsersPage() {
                         </td>
                         <td>
                           <div className="row-act">
-                            <button className="act-btn" onClick={() => handleEdit(userItem)} title="Sửa"><Edit size={15} /></button>
                             {user.userId === userItem.userId ? (
-                              <button className="act-btn" disabled title="Không thể khóa tài khoản đang đăng nhập" style={{ opacity: .35, cursor: "not-allowed" }}><Lock size={15} /></button>
-                            ) : userItem.isActive ? (
-                              <button className="act-btn danger" onClick={() => setConfirmTarget(userItem)} title="Khóa tài khoản"><Lock size={15} /></button>
+                              <>
+                                <button className="act-btn" disabled title="Không thể tự sửa quyền của chính mình ở đây (Vào Hồ sơ cá nhân)" style={{ opacity: .35, cursor: "not-allowed" }}><Edit size={15} /></button>
+                                <button className="act-btn" disabled title="Không thể khóa tài khoản đang đăng nhập" style={{ opacity: .35, cursor: "not-allowed" }}><Lock size={15} /></button>
+                              </>
                             ) : (
-                              <button className="act-btn" onClick={() => setConfirmTarget(userItem)} title="Mở khóa tài khoản" style={{ color: "var(--green)" }}><Unlock size={15} /></button>
+                              <>
+                                <button className="act-btn" onClick={() => handleEdit(userItem)} title="Sửa"><Edit size={15} /></button>
+                                {userItem.isActive ? (
+                                  <button className="act-btn danger" onClick={() => setConfirmTarget(userItem)} title="Khóa tài khoản"><Lock size={15} /></button>
+                                ) : (
+                                  <button className="act-btn" onClick={() => setConfirmTarget(userItem)} title="Mở khóa tài khoản" style={{ color: "var(--green)" }}><Unlock size={15} /></button>
+                                )}
+                              </>
                             )}
                           </div>
                         </td>
@@ -233,9 +243,15 @@ function AdminUsersPage() {
                     </div>
                     <div className="field">
                       <label>MẬT KHẨU {selectedUser ? "(để trống nếu không đổi)" : "*"}</label>
-                      <input className="input" type="password" value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        required={!selectedUser} />
+                      <div className="input-icon">
+                        <Icon name="lock" size={17} />
+                        <input className="input login-pass-input" type={showPassword ? "text" : "password"} value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          required={!selectedUser} style={{ paddingLeft: 40 }} />
+                        <button type="button" className="login-pass-toggle" onClick={() => setShowPassword(s => !s)}>
+                          <Icon name={showPassword ? "eye_off" : "eye"} size={17} />
+                        </button>
+                      </div>
                     </div>
                     <div className="field">
                       <label>HỌ TÊN *</label>
@@ -250,10 +266,10 @@ function AdminUsersPage() {
                     <div className="field">
                       <label>VAI TRÒ *</label>
                       <select className="input" value={formData.role}
-                        onChange={(e) => setFormData({ ...formData, role: parseInt(e.target.value) })}>
-                        <option value={0}>Super Admin (IT)</option>
-                        <option value={1}>Admin (HR)</option>
-                        <option value={2}>Viewer (Security)</option>
+                        onChange={(e) => setFormData({ ...formData, role: e.target.value })}>
+                        <option value="SuperAdmin">Super Admin (IT)</option>
+                        <option value="Admin">Admin (HR)</option>
+                        <option value="Viewer">Viewer (Security)</option>
                       </select>
                     </div>
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>

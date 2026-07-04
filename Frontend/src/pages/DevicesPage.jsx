@@ -134,9 +134,11 @@ function DevicesPage() {
               <div>
                 <h1 className="page-title">Quản lý thiết bị</h1>
               </div>
-              <button className="btn btn-primary" onClick={handleAdd}>
-                <Plus size={20} /> Thêm thiết bị mới
-              </button>
+              {(user?.role === 0 || user?.role === "SuperAdmin") && (
+                <button className="btn btn-primary" onClick={handleAdd}>
+                  <Plus size={20} /> Thêm thiết bị mới
+                </button>
+              )}
             </div>
 
             {loading ? (
@@ -184,12 +186,14 @@ function DevicesPage() {
                         </span>
                       </div>
                       {/* Edit/Delete overlay */}
-                      <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 6, zIndex: 10 }}>
-                        <button style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,0,0,.4)", border: "1px solid rgba(255,255,255,.12)", color: "#fff", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", cursor: "pointer" }}
-                          onClick={(e) => { e.stopPropagation(); handleEdit(d); }}><Edit size={15} /></button>
-                        <button style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,0,0,.4)", border: "1px solid rgba(255,255,255,.12)", color: "#fff", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", cursor: "pointer" }}
-                          onClick={(e) => { e.stopPropagation(); handleDelete(d.deviceId); }}><Trash2 size={15} /></button>
-                      </div>
+                      {(user?.role === 0 || user?.role === "SuperAdmin") && (
+                        <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 6, zIndex: 10 }}>
+                          <button style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,0,0,.4)", border: "1px solid rgba(255,255,255,.12)", color: "#fff", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", cursor: "pointer" }}
+                            onClick={(e) => { e.stopPropagation(); handleEdit(d); }}><Edit size={15} /></button>
+                          <button style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,0,0,.4)", border: "1px solid rgba(255,255,255,.12)", color: "#fff", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", cursor: "pointer" }}
+                            onClick={(e) => { e.stopPropagation(); handleDelete(d.deviceId); }}><Trash2 size={15} /></button>
+                        </div>
+                      )}
                     </div>
                     {/* Card body */}
                     <div style={{ padding: 18 }}>
@@ -219,17 +223,19 @@ function DevicesPage() {
                 ))}
 
                 {/* Add new card */}
-                <button className="card"
-                  style={{ padding: 24, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, border: "2px dashed var(--border)", background: "transparent", minHeight: 280, color: "var(--ink-3)", transition: "border .15s,color .15s", width: "100%", cursor: "pointer" }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.color = "var(--primary-700)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--ink-3)"; }}
-                  onClick={handleAdd}>
-                  <div style={{ width: 48, height: 48, borderRadius: 14, background: "var(--surface-3)", display: "grid", placeItems: "center" }}>
-                    <Plus size={24} />
-                  </div>
-                  <div style={{ fontWeight: 700, fontSize: 14.5 }}>Thêm camera mới</div>
-                  <div style={{ fontSize: 12.5, textAlign: "center", maxWidth: 200 }}>Kết nối camera AI để bắt đầu giám sát ra vào</div>
-                </button>
+                {(user?.role === 0 || user?.role === "SuperAdmin") && (
+                  <button className="card"
+                    style={{ padding: 24, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, border: "2px dashed var(--border)", background: "transparent", minHeight: 280, color: "var(--ink-3)", transition: "border .15s,color .15s", width: "100%", cursor: "pointer" }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--primary)"; e.currentTarget.style.color = "var(--primary-700)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--ink-3)"; }}
+                    onClick={handleAdd}>
+                    <div style={{ width: 48, height: 48, borderRadius: 14, background: "var(--surface-3)", display: "grid", placeItems: "center" }}>
+                      <Plus size={24} />
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: 14.5 }}>Thêm camera mới</div>
+                    <div style={{ fontSize: 12.5, textAlign: "center", maxWidth: 200 }}>Kết nối camera AI để bắt đầu giám sát ra vào</div>
+                  </button>
+                )}
               </div>
             )}
 

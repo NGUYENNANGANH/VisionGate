@@ -414,3 +414,9 @@ body.sidebar-collapsed .nav-label {
 .settings-body { max-width: 720px; }
 .settings-section h3 { font-family: var(--display); font-size: 18px; font-weight: 700; margin: 0 0 4px; color: var(--ink); }
 .settings-section p { font-size: 13.5px; color: var(--ink-3); margin: 0 0 20px; }
+
+/* ========================== BROWSER NATIVE ========================== */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}

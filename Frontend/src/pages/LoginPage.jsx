@@ -93,7 +93,6 @@ function LoginPage() {
             <div className="field">
               <div className="login-label-row">
                 <label>Mật khẩu</label>
-                <Link to="/forgot-password" className="login-forgot">Quên mật khẩu?</Link>
               </div>
               <div className="input-icon">
                 <Icon name="lock" size={17} />

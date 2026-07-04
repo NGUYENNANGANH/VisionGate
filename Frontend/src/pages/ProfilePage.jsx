@@ -81,6 +81,7 @@ function ProfileTab({ user, onOpenPasswordModal }) {
 /* ── Tab 2: Bảo mật ── */
 function ChangePasswordModal({ onClose }) {
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
+  const [showPasswords, setShowPasswords] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ text: "", ok: true });
 
@@ -116,30 +117,39 @@ function ChangePasswordModal({ onClose }) {
           <form onSubmit={handleSubmit}>
             <div className="field" style={{ marginBottom: 20 }}>
               <label>Mật khẩu hiện tại</label>
-          <div style={{ position: "relative" }}>
-            <Icon name="lock" size={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)" }} />
-            <input className="input" style={{ paddingLeft: 40 }} type="password"
-              value={pw.current} onChange={e => setPw(p => ({ ...p, current: e.target.value }))} placeholder="••••••••" />
-          </div>
-        </div>
+              <div className="input-icon">
+                <Icon name="lock" size={17} />
+                <input className="input login-pass-input" style={{ paddingLeft: 40 }} type={showPasswords ? "text" : "password"}
+                  value={pw.current} onChange={e => setPw(p => ({ ...p, current: e.target.value }))} placeholder="••••••••" />
+                <button type="button" className="login-pass-toggle" onClick={() => setShowPasswords(s => !s)}>
+                  <Icon name={showPasswords ? "eye_off" : "eye"} size={17} />
+                </button>
+              </div>
+            </div>
 
-        <div className="field" style={{ marginBottom: 20 }}>
-          <label>Mật khẩu mới</label>
-          <div style={{ position: "relative" }}>
-            <Icon name="lock" size={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)" }} />
-            <input className="input" style={{ paddingLeft: 40 }} type="password"
-              value={pw.next} onChange={e => setPw(p => ({ ...p, next: e.target.value }))} placeholder="••••••••" />
-          </div>
-        </div>
+            <div className="field" style={{ marginBottom: 20 }}>
+              <label>Mật khẩu mới</label>
+              <div className="input-icon">
+                <Icon name="lock" size={17} />
+                <input className="input login-pass-input" style={{ paddingLeft: 40 }} type={showPasswords ? "text" : "password"}
+                  value={pw.next} onChange={e => setPw(p => ({ ...p, next: e.target.value }))} placeholder="••••••••" />
+                <button type="button" className="login-pass-toggle" onClick={() => setShowPasswords(s => !s)}>
+                  <Icon name={showPasswords ? "eye_off" : "eye"} size={17} />
+                </button>
+              </div>
+            </div>
 
-        <div className="field" style={{ marginBottom: 24 }}>
-          <label>Xác nhận mật khẩu mới</label>
-          <div style={{ position: "relative" }}>
-            <Icon name="lock" size={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)" }} />
-            <input className="input" style={{ paddingLeft: 40 }} type="password"
-              value={pw.confirm} onChange={e => setPw(p => ({ ...p, confirm: e.target.value }))} placeholder="••••••••" />
-          </div>
-        </div>
+            <div className="field" style={{ marginBottom: 24 }}>
+              <label>Xác nhận mật khẩu mới</label>
+              <div className="input-icon">
+                <Icon name="lock" size={17} />
+                <input className="input login-pass-input" style={{ paddingLeft: 40 }} type={showPasswords ? "text" : "password"}
+                  value={pw.confirm} onChange={e => setPw(p => ({ ...p, confirm: e.target.value }))} placeholder="••••••••" />
+                <button type="button" className="login-pass-toggle" onClick={() => setShowPasswords(s => !s)}>
+                  <Icon name={showPasswords ? "eye_off" : "eye"} size={17} />
+                </button>
+              </div>
+            </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 32 }}>
               <button type="button" className="btn btn-outline" onClick={onClose}>Hủy</button>

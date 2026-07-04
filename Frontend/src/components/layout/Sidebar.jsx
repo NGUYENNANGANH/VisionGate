@@ -4,18 +4,20 @@ import { Icon, ShieldLogo } from "../ui/Icon";
 import "./Sidebar.css";
 
 const isSystemAdmin = (role) => role === 0 || role === "SuperAdmin";
+const isHR = (role) => role === 1 || role === "Admin";
+const isAtLeastHR = (role) => isSystemAdmin(role) || isHR(role);
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: "dashboard" },
-  { to: "/employees", label: "Nhân viên", icon: "users" },
-  { to: "/attendance-reports", label: "Chấm công", icon: "calendar" },
+  { to: "/employees", label: "Nhân viên", icon: "users", requireHR: true },
+  { to: "/attendance-reports", label: "Chấm công", icon: "calendar", requireHR: true },
   { to: "/access-logs", label: "Lịch sử", icon: "logs" },
   { to: "/devices", label: "Thiết bị", icon: "devices" },
 ];
 
 const NAV_ADMIN = [
   { to: "/admin/users", label: "Tài khoản hệ thống", icon: "shield_user", adminOnly: true },
-  { to: "/settings", label: "Quản lý ca làm việc", icon: "settings" },
+  { to: "/settings", label: "Quản lý ca làm việc", icon: "settings", requireHR: true },
 ];
 
 const getInitials = (name = "") =>
@@ -90,18 +92,22 @@ function Sidebar({ user, onLogout }) {
       )}
 
       <nav className="sidebar-nav">
-        {NAV.map(n => (
-          <Link key={n.to} to={n.to} className={`nav-item ${location.pathname === n.to ? "active" : ""}`}>
-            <Icon name={n.icon} size={18} />
-            <span>{n.label}</span>
-            {n.badge && <span className="nav-badge">1</span>}
-          </Link>
-        ))}
+        {NAV.map(n => {
+          if (n.requireHR && !isAtLeastHR(user?.role)) return null;
+          return (
+            <Link key={n.to} to={n.to} className={`nav-item ${location.pathname === n.to ? "active" : ""}`}>
+              <Icon name={n.icon} size={18} />
+              <span>{n.label}</span>
+              {n.badge && <span className="nav-badge">1</span>}
+            </Link>
+          );
+        })}
 
-        <div className="nav-label">Quản trị</div>
+        {isAtLeastHR(user?.role) && <div className="nav-label">Quản trị</div>}
 
         {NAV_ADMIN.map(n => {
           if (n.adminOnly && !isSystemAdmin(user?.role)) return null;
+          if (n.requireHR && !isAtLeastHR(user?.role)) return null;
           return (
             <Link key={n.to} to={n.to} className={`nav-item ${location.pathname === n.to ? "active" : ""}`}>
               <Icon name={n.icon} size={18} />

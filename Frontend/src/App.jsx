@@ -37,15 +37,15 @@ function App() {
         <Route
           path="/employees"
           element={
-            <ProtectedRoute>
+            <RoleProtectedRoute allowedRoles={[0, "SuperAdmin", 1, "Admin"]}>
               <EmployeesPage />
-            </ProtectedRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/settings"
           element={
-            <RoleProtectedRoute allowedRoles={[0, "SuperAdmin"]}>
+            <RoleProtectedRoute allowedRoles={[0, "SuperAdmin", 1, "Admin"]}>
               <SettingsPage />
             </RoleProtectedRoute>
           }
@@ -69,9 +69,9 @@ function App() {
         <Route
           path="/attendance-reports"
           element={
-            <ProtectedRoute>
+            <RoleProtectedRoute allowedRoles={[0, "SuperAdmin", 1, "Admin"]}>
               <AttendanceReportsPage />
-            </ProtectedRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
@@ -85,9 +85,9 @@ function App() {
         <Route
           path="/devices"
           element={
-            <RoleProtectedRoute allowedRoles={[0, "SuperAdmin"]}>
+            <ProtectedRoute>
               <DevicesPage />
-            </RoleProtectedRoute>
+            </ProtectedRoute>
           }
         />
         <Route path="/" element={<Navigate to="/dashboard" />} />
