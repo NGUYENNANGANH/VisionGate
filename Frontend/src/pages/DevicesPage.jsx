@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Wifi, WifiOff, MapPin, X } from "lucide-react";
+import { Plus, Edit, Trash2, Wifi, WifiOff, MapPin, X, Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService";
+import { uploadService } from "../services/uploadService";
 import api from "../services/api";
 import Sidebar from "../components/layout/Sidebar";
 import Header from "../components/layout/Header";
@@ -14,6 +15,8 @@ function DevicesPage() {
   const [showModal, setShowModal] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [viewingDevice, setViewingDevice] = useState(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState({
     deviceCode: "",
     deviceName: "",
@@ -47,6 +50,22 @@ function DevicesPage() {
     navigate("/login");
   };
 
+  const handleVideoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      setIsUploading(true);
+      const url = await uploadService.uploadImage(file, "videos");
+      setFormData({ ...formData, ipAddress: url });
+      alert("Đã tải lên video thành công!");
+    } catch (error) {
+      alert(error.message || "Lỗi tải video");
+    } finally {
+      setIsUploading(false);
+      e.target.value = null;
+    }
+  };
+
   const handleAdd = () => {
     setSelectedDevice(null);
     setFormData({ deviceCode: "", deviceName: "", location: "", ipAddress: "", rtspUsername: "admin", rtspPassword: "", rtspPort: 554, isActive: true });
@@ -68,14 +87,20 @@ function DevicesPage() {
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa thiết bị này?")) return;
+  const handleDelete = (id) => {
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await api.delete(`/devices/${id}`);
+      await api.delete(`/devices/${deleteConfirmId}`);
       loadDevices();
     } catch (error) {
       console.error("Failed to delete device:", error);
       alert("Không thể xóa thiết bị. Vui lòng thử lại.");
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -107,7 +132,6 @@ function DevicesPage() {
             <div className="page-head">
               <div>
                 <h1 className="page-title">Quản lý thiết bị</h1>
-                <p className="page-sub">Cấu hình camera AI và thiết bị kiểm soát ra vào</p>
               </div>
               <button className="btn btn-primary" onClick={handleAdd}>
                 <Plus size={20} /> Thêm thiết bị mới
@@ -129,8 +153,8 @@ function DevicesPage() {
                           title="Bấm để xem phóng to"
                         >
                           <img 
-                            src={`http://localhost:5000/camera/stream?deviceId=${d.deviceId}`} 
-                            style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0, zIndex: 1 }} 
+                            src={`http://localhost:8000/camera/stream?deviceId=${d.deviceId}`} 
+                            style={{ width: "100%", height: "100%", objectFit: "contain", position: "absolute", inset: 0, zIndex: 1 }} 
                             alt="Camera Feed"
                             onError={(e) => {
                               e.target.style.display = 'none';
@@ -159,11 +183,11 @@ function DevicesPage() {
                         </span>
                       </div>
                       {/* Edit/Delete overlay */}
-                      <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 6 }}>
+                      <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 6, zIndex: 10 }}>
                         <button style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,0,0,.4)", border: "1px solid rgba(255,255,255,.12)", color: "#fff", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", cursor: "pointer" }}
-                          onClick={() => handleEdit(d)}><Edit size={15} /></button>
+                          onClick={(e) => { e.stopPropagation(); handleEdit(d); }}><Edit size={15} /></button>
                         <button style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(0,0,0,.4)", border: "1px solid rgba(255,255,255,.12)", color: "#fff", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", cursor: "pointer" }}
-                          onClick={() => handleDelete(d.deviceId)}><Trash2 size={15} /></button>
+                          onClick={(e) => { e.stopPropagation(); handleDelete(d.deviceId); }}><Trash2 size={15} /></button>
                       </div>
                     </div>
                     {/* Card body */}
@@ -182,8 +206,10 @@ function DevicesPage() {
                           <MapPin size={15} style={{ color: "var(--ink-3)" }} />{d.location}
                         </div>
                         {d.ipAddress && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: "var(--ink-2)" }}>
-                            <span className="mono" style={{ fontSize: 12.5 }}>IP {d.ipAddress}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: "var(--ink-2)", overflow: "hidden" }}>
+                            <span className="mono" style={{ fontSize: 12.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }} title={d.ipAddress}>
+                              IP {d.ipAddress}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -235,10 +261,17 @@ function DevicesPage() {
                         required placeholder="Cổng vào chính - Tầng 1" />
                     </div>
                     <div className="field">
-                      <label>ĐỊA CHỈ IP (CAMERA)</label>
-                      <input className="input" type="text" value={formData.ipAddress}
-                        onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
-                        placeholder="192.168.1.100" />
+                      <label>ĐỊA CHỈ IP (CAMERA) HOẶC LINK VIDEO TEST</label>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <input className="input" type="text" value={formData.ipAddress}
+                          onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
+                          placeholder="192.168.1.100 hoặc link video..." style={{ flex: 1 }} />
+                        <label style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", flexShrink: 0, padding: "0 16px", background: "var(--surface-3)", border: "1px solid var(--border)", borderRadius: "var(--r-md)", color: "var(--ink-2)", fontSize: "14px", fontWeight: 600 }}>
+                          <Upload size={16} />
+                          {isUploading ? "Đang tải..." : "Tải Video"}
+                          <input type="file" accept="video/mp4,video/webm,video/quicktime" style={{ display: "none" }} onChange={handleVideoUpload} disabled={isUploading} />
+                        </label>
+                      </div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px", gap: "12px", marginBottom: "16px" }}>
                       <div className="field" style={{ marginBottom: 0 }}>
@@ -278,23 +311,42 @@ function DevicesPage() {
               </div>
             )}
 
-            {/* Camera View Modal */}
             {viewingDevice && (
-              <div className="modal-backdrop fade-in" onClick={() => setViewingDevice(null)} style={{ zIndex: 9999 }}>
-                <div className="modal-content" onClick={e => e.stopPropagation()} style={{ width: "90%", maxWidth: 1000, padding: 0, background: "#000", overflow: "hidden", position: "relative" }}>
-                  <div style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}>
-                    <button style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(0,0,0,0.5)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", display: "grid", placeItems: "center", backdropFilter: "blur(4px)" }} onClick={() => setViewingDevice(null)}>
-                      <X size={20} />
+              <div className="modal-backdrop fade-in" onClick={() => setViewingDevice(null)} style={{ zIndex: 9999, position: "fixed", inset: 0, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(0,0,0,0.75)", backdropFilter: "blur(12px)" }}>
+                <div className="modal-content" onClick={e => e.stopPropagation()} style={{ width: "90%", height: "90%", maxWidth: 1200, padding: 0, background: "rgba(10,10,10,0.4)", borderRadius: 24, border: "1px solid rgba(255,255,255,0.1)", position: "relative", display: "flex", justifyContent: "center", alignItems: "center", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", top: 24, right: 24, zIndex: 10 }}>
+                    <button style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", display: "grid", placeItems: "center", backdropFilter: "blur(8px)", transition: "all 0.2s" }} onClick={() => setViewingDevice(null)} title="Đóng (Esc)">
+                      <X size={24} />
                     </button>
                   </div>
-                  <div style={{ position: "absolute", top: 16, left: 16, zIndex: 10, background: "rgba(0,0,0,0.5)", color: "#fff", padding: "8px 16px", borderRadius: 8, backdropFilter: "blur(4px)", fontWeight: 600 }}>
+                  <div style={{ position: "absolute", top: 24, left: 24, zIndex: 10, background: "rgba(0,0,0,0.5)", color: "#fff", padding: "10px 20px", borderRadius: 12, backdropFilter: "blur(8px)", fontWeight: 600, border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", gap: 10, fontSize: 16 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ff4d4f", boxShadow: "0 0 12px #ff4d4f" }}></div>
                     {viewingDevice.deviceName} - {viewingDevice.location}
                   </div>
                   <img 
-                    src={`http://localhost:5000/camera/stream?deviceId=${viewingDevice.deviceId}`} 
-                    style={{ width: "100%", height: "auto", display: "block", minHeight: 400 }} 
+                    src={`http://localhost:8000/camera/stream?deviceId=${viewingDevice.deviceId}`} 
+                    style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} 
                     alt="Camera Fullscreen"
                   />
+                </div>
+              </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteConfirmId && (
+              <div className="modal-backdrop fade-in" onClick={() => setDeleteConfirmId(null)} style={{ zIndex: 9999, position: "fixed", inset: 0, display: "flex", justifyContent: "center", alignItems: "center", background: "rgba(13,21,38,.45)", backdropFilter: "blur(4px)" }}>
+                <div className="modal-content" onClick={e => e.stopPropagation()} style={{ background: "var(--surface)", padding: "32px", borderRadius: "var(--r-lg)", boxShadow: "0 20px 40px rgba(0,0,0,0.2)", width: 400, maxWidth: "calc(100vw - 32px)", textAlign: "center" }}>
+                  <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--red-soft)", color: "var(--red)", display: "flex", justifyContent: "center", alignItems: "center", margin: "0 auto 20px" }}>
+                    <Trash2 size={32} />
+                  </div>
+                  <h2 style={{ margin: "0 0 12px", fontFamily: "var(--display)", fontSize: 22, color: "var(--ink)" }}>Xóa thiết bị?</h2>
+                  <p style={{ margin: "0 0 24px", color: "var(--ink-2)", fontSize: 15, lineHeight: 1.5 }}>
+                    Bạn có chắc chắn muốn xóa thiết bị này không? Hành động này không thể hoàn tác và sẽ ảnh hưởng đến luồng giám sát hiện tại.
+                  </p>
+                  <div style={{ display: "flex", gap: 12 }}>
+                    <button className="btn btn-ghost" style={{ flex: 1, padding: "12px 0", fontSize: 15 }} onClick={() => setDeleteConfirmId(null)}>Hủy bỏ</button>
+                    <button className="btn" style={{ flex: 1, background: "var(--red)", color: "#fff", padding: "12px 0", fontSize: 15, border: "none" }} onClick={confirmDelete}>Xóa ngay</button>
+                  </div>
                 </div>
               </div>
             )}

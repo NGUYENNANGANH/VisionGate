@@ -59,7 +59,7 @@ function AccessLogsPage() {
           id: `checkin-${item.checkInId}`,
           time: item.checkInTime,
           employee: item.employee,
-          location: item.device?.location || "Unknown",
+          location: item.device?.location || "Thiết bị đã xóa",
           status: (item.ppeDetection && item.ppeDetection.overallCompliance) ? "ĐIỂM DANH" : "CẢNH BÁO",
           statusType: (item.ppeDetection && item.ppeDetection.overallCompliance) ? "success" : "warning",
           imageUrl: item.checkInImageUrl,
@@ -70,7 +70,7 @@ function AccessLogsPage() {
           id: `violation-${item.violationId}`,
           time: item.createdAt,
           employee: item.employee,
-          location: item.checkInRecord?.device?.location || "Unknown",
+          location: item.checkInRecord?.device?.location || "Thiết bị đã xóa",
           status: item.violationType === 5 ? "TRÁI PHÉP" : "VI PHẠM",
           statusType: item.severity >= 2 ? "critical" : "violation",
           imageUrl: item.imageUrl,
@@ -188,7 +188,6 @@ function AccessLogsPage() {
             <div className="page-head">
               <div>
                 <h1 className="page-title">Lịch sử điểm danh và vi phạm</h1>
-                <p className="page-sub">Nhật ký giám sát thời gian thực và sự kiện nhận diện AI</p>
               </div>
               <button className="btn btn-green" onClick={handleExportExcel} disabled={exporting}>
                 <Download size={16} /> {exporting ? 'Đang xuất...' : 'Xuất Excel'}

@@ -7,4 +7,5 @@ public interface IPPEDetectionRepository
     Task<PPEDetection?> GetByIdAsync(int id);
     Task<PPEDetection> AddAsync(PPEDetection detection);
     Task UpdateAsync(PPEDetection detection);
+    Task<IEnumerable<PPEDetection>> GetAllAsync();
 }

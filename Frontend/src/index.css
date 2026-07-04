@@ -101,9 +101,54 @@ a { text-decoration: none; }
 .devices-container,
 .admin-container {
   display: grid;
-  grid-template-columns: 264px 1fr;
+  grid-template-columns: var(--sidebar-width, 264px) 1fr;
   height: 100vh;
   background: var(--bg-grad);
+  transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.sidebar-collapsed {
+  --sidebar-width: 80px;
+}
+
+body.sidebar-collapsed .sidebar {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+body.sidebar-collapsed .brand-name,
+body.sidebar-collapsed .brand-sub,
+body.sidebar-collapsed .nav-item span,
+body.sidebar-collapsed .nav-badge,
+body.sidebar-collapsed .nav-label,
+body.sidebar-collapsed .sidebar-section .section-title,
+body.sidebar-collapsed .user-info,
+body.sidebar-collapsed .more-icon {
+  display: none !important;
+}
+
+body.sidebar-collapsed .brand {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+  gap: 0;
+}
+
+body.sidebar-collapsed .nav-item {
+  justify-content: center;
+  padding: 10px;
+  margin: 0 auto;
+}
+
+body.sidebar-collapsed .user-card {
+  justify-content: center;
+  padding: 8px;
+}
+
+body.sidebar-collapsed .nav-label {
+  padding-top: 10px;
+  padding-bottom: 5px;
+  text-align: center;
 }
 
 /* ---------- Sidebar ---------- */
@@ -115,9 +160,10 @@ a { text-decoration: none; }
   flex-direction: column;
   padding: 18px 14px 14px;
   position: relative;
-  overflow: hidden;
-  width: 264px;
+  overflow: visible;
+  width: var(--sidebar-width, 264px);
   flex-shrink: 0;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
 }
 .side::before, .sidebar::before {
   content: '';

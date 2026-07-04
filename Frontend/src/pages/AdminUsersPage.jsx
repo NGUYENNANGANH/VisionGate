@@ -123,7 +123,6 @@ function AdminUsersPage() {
             <div className="page-head">
               <div>
                 <h1 className="page-title">Quản lý tài khoản hệ thống</h1>
-                <p className="page-sub">Tạo và quản lý tài khoản truy cập cho HR và Security</p>
               </div>
               <button className="btn btn-primary" onClick={handleAdd}>
                 <Plus size={20} /> Tạo tài khoản mới

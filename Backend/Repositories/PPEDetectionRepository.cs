@@ -34,4 +34,9 @@ public class PPEDetectionRepository : IPPEDetectionRepository
         _context.Entry(detection).State = EntityState.Modified;
         await _context.SaveChangesAsync();
     }
+
+    public async Task<IEnumerable<PPEDetection>> GetAllAsync()
+    {
+        return await _context.PPEDetections.ToListAsync();
+    }
 }

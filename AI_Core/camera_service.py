@@ -26,7 +26,7 @@ RTSP_PORT = 554
 RTSP_SUBTYPE = 0               # 0 = luồng chính (5MP, nét); 1 = luồng phụ (nhẹ)
 FALLBACK_IP = "192.168.1.29"   # dùng khi giao diện chưa nhập IP / không gọi được API
 USE_WEBCAM = False             # True = dùng webcam laptop thay camera IP
-USE_VIDEO = True               # True = dùng file mp4 thay vì RTSP/Webcam
+USE_VIDEO = False               # True = dùng file mp4 thay vì RTSP/Webcam
 VIDEO_PATH = "d:/doan/VisionGate/AI_Core/IMG_3105.MOV" # Đường dẫn file video test
 CHECK_INTERVAL = 3
 RECOGNITION_INTERVAL = 3
@@ -126,6 +126,7 @@ def draw_face_info(frame, bbox, label, color):
 
 def main():
     global registered_count
+    global DEVICE_ID
     print("VisionGate Camera Service")
     # Yêu cầu FastAPI nạp lại embedding mới nhất từ Backend (1 nguồn duy nhất ở Tầng AI)
     try:
@@ -148,19 +149,30 @@ def main():
         # Lấy TOÀN BỘ thông tin kết nối từ CSDL (mỗi thiết bị một cấu hình riêng)
         ip, user, pwd, port = FALLBACK_IP, CAMERA_USERNAME, CAMERA_PASSWORD, RTSP_PORT
         try:
-            resp = requests.get(f"{BACKEND_URL}/api/devices/{DEVICE_ID}", timeout=5)
+            resp = requests.get(f"{BACKEND_URL}/api/devices", timeout=5)
             if resp.status_code == 200:
-                d = resp.json()
-                ip = d.get('ipAddress') or ip
-                user = d.get('rtspUsername') or user
-                pwd = d.get('rtspPassword') or pwd
-                port = d.get('rtspPort') or port
-                print(f"[CameraService] Loaded camera config from API: {user}@{ip}:{port}")
+                devices = resp.json()
+                if devices and len(devices) > 0:
+                    d = devices[0]
+                    DEVICE_ID = d.get('deviceId', DEVICE_ID)
+                    ip = d.get('ipAddress') or ip
+                    user = d.get('rtspUsername') or user
+                    pwd = d.get('rtspPassword') or pwd
+                    port = d.get('rtspPort') or port
+                    print(f"[CameraService] Loaded camera config from API (Device #{DEVICE_ID}): {user}@{ip}:{port}")
+                else:
+                    print("[CameraService] No devices found in API. Using fallback.")
             else:
                 print(f"[CameraService] API returned {resp.status_code}, using fallback {user}@{ip}:{port}")
         except Exception as e:
             print(f"[CameraService] Cannot call API ({e}), using fallback {user}@{ip}:{port}")
-        source = f"rtsp://{user}:{pwd}@{ip}:{port}/cam/realmonitor?channel=1&subtype={RTSP_SUBTYPE}"
+        
+        if ip.startswith("http") or ip.endswith(".mp4") or ip.endswith(".mov"):
+            source = ip
+            print(f"[CameraService] Dùng video trực tiếp: {source}")
+        else:
+            source = f"rtsp://{user}:{pwd}@{ip}:{port}/cam/realmonitor?channel=1&subtype={RTSP_SUBTYPE}"
+    
     cap = cv2.VideoCapture(source, cv2.CAP_FFMPEG) if (isinstance(source, str) and source.startswith("rtsp")) else cv2.VideoCapture(source)
     if not USE_VIDEO:
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # luôn lấy frame mới nhất, giảm độ trễ RTSP
@@ -233,13 +245,11 @@ def main():
 
         if frame_count % 2 == 0: send_frame_to_api(frame)
 
-        # Hiển thị màn hình xem trực tiếp
-        cv2.imshow("VisionGate Camera Test", frame)
-        if cv2.waitKey(20) & 0xFF == ord('q'):
-            break
+        # Tránh việc chạy max CPU khi đọc file video nội bộ
+        if USE_VIDEO or (isinstance(source, str) and not source.startswith("rtsp")):
+            time.sleep(0.03)
 
     cap.release()
-    cv2.destroyAllWindows()
     print("Camera Service stopped.")
 
 if __name__ == "__main__":

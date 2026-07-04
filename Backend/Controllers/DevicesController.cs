@@ -53,4 +53,22 @@ public class DevicesController : ControllerBase
 
         return NoContent();
     }
+
+    // DELETE: api/devices/5
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteDevice(int id)
+    {
+        try
+        {
+            var deleted = await _deviceService.DeleteDeviceAsync(id);
+            if (!deleted)
+                return NotFound();
+            
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = "Không thể xóa thiết bị do có dữ liệu liên quan (lịch sử điểm danh). Vui lòng thử lại sau." });
+        }
+    }
 }

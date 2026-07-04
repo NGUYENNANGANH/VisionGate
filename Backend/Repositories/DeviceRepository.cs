@@ -44,4 +44,9 @@ public class DeviceRepository : IDeviceRepository
         return await _context.Devices.AnyAsync(d => d.DeviceId == id);
     }
 
+    public async Task DeleteAsync(Device device)
+    {
+        _context.Devices.Remove(device);
+        await _context.SaveChangesAsync();
+    }
 }

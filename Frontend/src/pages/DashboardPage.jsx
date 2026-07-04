@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { authService } from "../services/authService";
 import signalRService from "../services/signalRService";
 import api from "../services/api";
@@ -9,53 +10,29 @@ import { AICameraFeed } from "../components/ui/AICameraFeed";
 import { Icon, VGBadge, VGAvatar } from "../components/ui/Icon";
 import "./DashboardPage.css";
 
-function Sparkline({ data, color, w = 96, h = 34 }) {
-  const max = Math.max(...data), min = Math.min(...data);
-  const rng = max - min || 1;
-  const pts = data.map((v, i) => [(i / (data.length - 1)) * w, h - ((v - min) / rng) * (h - 6) - 3]);
-  const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
-  const area = d + ` L${w} ${h} L0 ${h} Z`;
-  const id = 'sp' + color.replace(/[^a-z0-9]/gi, '');
-  return (
-    <svg width={w} height={h} style={{ display: 'block', overflow: 'visible' }}>
-      <defs>
-        <linearGradient id={id} x1={0} y1={0} x2={0} y2={1}>
-          <stop offset="0%" stopColor={color} stopOpacity={.22} />
-          <stop offset="100%" stopColor={color} stopOpacity={0} />
-        </linearGradient>
-      </defs>
-      <path d={area} fill={`url(#${id})`} />
-      <path d={d} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r={2.8} fill={color} />
-    </svg>
-  );
-}
 
-function StatCard({ icon, tone, label, value, sub, trend, trendDir, spark }) {
+
+function StatCard({ icon, tone, label, value, sub, trend, trendDir }) {
   const colors = { teal: 'var(--primary)', green: 'var(--green)', red: 'var(--red)', blue: 'var(--blue)' };
   const softColors = { teal: 'var(--primary-soft-2)', green: 'var(--green-soft)', red: 'var(--red-soft)', blue: 'var(--blue-soft)' };
   const tc = colors[tone];
   const tcs = softColors[tone];
   return (
-    <div className="card" style={{ padding: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ width: 42, height: 42, borderRadius: 12, background: tcs, color: tc, display: 'grid', placeItems: 'center' }}>
-          <Icon name={icon} size={21} />
+    <div className="card" style={{ padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+        <div style={{ width: 46, height: 46, borderRadius: 12, background: tcs, color: tc, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name={icon} size={22} />
         </div>
-        {trend && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12.5, fontWeight: 700, color: trendDir === 'up' ? 'var(--green)' : 'var(--red)' }}>
-            <Icon name={trendDir === 'down' ? 'arrow_down' : 'arrow_up'} size={13} stroke={2.6} />
-            {trend}
-          </div>
-        )}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 14, gap: 8 }}>
         <div>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 30, fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1 }}>{value}</div>
-          <div style={{ fontSize: 13, color: 'var(--ink-2)', fontWeight: 600, marginTop: 7 }}>{label}</div>
-          {sub && <div style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 3 }}>{sub}</div>}
+          <div style={{ fontSize: 13.5, color: 'var(--ink-2)', fontWeight: 600 }}>{label}</div>
+          {sub && <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 3 }}>{sub}</div>}
         </div>
-        {spark && <Sparkline data={spark} color={tc} />}
+      </div>
+      
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+        <div style={{ fontFamily: 'var(--display)', fontSize: 32, fontWeight: 700, letterSpacing: '-.02em', lineHeight: 1, color: 'var(--ink)' }}>
+          {value}
+        </div>
       </div>
     </div>
   );
@@ -127,7 +104,7 @@ function DashboardPage() {
       const checkins = (checkInsRes.data || []).map(item => ({
         name: item.employee?.fullName || 'Chưa xác định',
         photo: item.employee?.faceImageUrl || null,
-        loc: item.device?.location || 'Không xác định',
+        loc: item.device?.location || 'Thiết bị đã xóa',
         status: (item.ppeDetection && item.ppeDetection.overallCompliance) ? 'ok' : 'violation',
         time: item.checkInTime ? new Date(item.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—',
         _raw: new Date(item.checkInTime),
@@ -135,7 +112,7 @@ function DashboardPage() {
       const violations = (violationsRes.data || []).map(item => ({
         name: item.employee?.fullName || 'Chưa xác định',
         photo: item.employee?.faceImageUrl || null,
-        loc: item.checkInRecord?.device?.location || 'Không xác định',
+        loc: item.checkInRecord?.device?.location || 'Thiết bị đã xóa',
         status: item.violationType === 5 ? 'unknown' : 'violation',
         time: item.createdAt ? new Date(item.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—',
         _raw: new Date(item.createdAt),
@@ -159,6 +136,7 @@ function DashboardPage() {
     try {
       signalRService.on("ReceiveNewCheckIn", () => { loadDashboardData(); loadRecentActivity(); });
       signalRService.on("ReceiveNewViolation", (data) => { showNotification("Cảnh báo vi phạm mới!", data); loadRecentActivity(); });
+      signalRService.on("connected", (msg) => { console.log("SignalR Server says:", msg); });
       const ok = await signalRService.start();
       setConnected(ok);
     } catch {
@@ -187,6 +165,36 @@ function DashboardPage() {
 
   const statusColor = s => s === 'ok' ? 'var(--green)' : s === 'violation' ? 'var(--amber)' : 'var(--red)';
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const today = new Date().toISOString().split('T')[0];
+      const res = await api.post('/reports/export-excel',
+        {
+          reportType: 'overview',
+          fromDate: today,
+          toDate: today,
+        },
+        { responseType: 'blob' }
+      );
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bao-cao-an-ninh-${today}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Xuất báo cáo thành công!");
+    } catch (err) {
+      toast.error('Lỗi khi xuất báo cáo: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="dashboard-container">
       <Sidebar user={user} onLogout={handleLogout} />
@@ -200,18 +208,18 @@ function DashboardPage() {
                 <h1 className="page-title">Tổng quan an ninh</h1>
                 <p className="page-sub">Giám sát thời gian thực · {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
               </div>
-              <button className="btn btn-ghost">
+              <button className="btn btn-ghost" onClick={handleExport} disabled={exporting}>
                 <Icon name="download" size={16} />
-                Xuất báo cáo
+                {exporting ? "Đang xuất..." : "Xuất báo cáo"}
               </button>
             </div>
 
             {/* KPI cards */}
             <div className="grid" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginBottom: 18 }}>
-              <StatCard icon="users" tone="teal" value={stats?.totalEmployees ?? '—'} label="Tổng số nhân viên" trend="+2" trendDir="up" spark={[3,4,4,5,6,6,7]} />
-              <StatCard icon="check" tone="green" value={stats?.todayCheckIns ?? '—'} label="Đang có mặt" sub="Hôm nay" spark={[5,6,4,7,3,1,0]} />
-              <StatCard icon="alert" tone="red" value={stats?.todayViolations ?? '—'} label="Vi phạm hôm nay" trend={stats?.todayViolations > 0 ? `+${stats?.todayViolations}` : undefined} trendDir="up" spark={[0,0,1,0,0,1,1]} />
-              <StatCard icon="devices" tone="blue" value={`${stats?.onlineDevices ?? 0}/${stats?.totalDevices ?? 0}`} label="Thiết bị trực tuyến" sub={connected ? 'SignalR kết nối' : 'Ngoại tuyến'} spark={[2,2,1,2,0,0,0]} />
+              <StatCard icon="users" tone="teal" value={stats?.totalEmployees ?? '—'} label="Tổng số nhân viên" />
+              <StatCard icon="check" tone="green" value={stats?.todayCheckIns ?? '—'} label="Đang có mặt" sub="Hôm nay" />
+              <StatCard icon="alert" tone="red" value={stats?.todayViolations ?? '—'} label="Vi phạm hôm nay" />
+              <StatCard icon="devices" tone="blue" value={`${stats?.onlineDevices ?? 0}/${stats?.totalDevices ?? 0}`} label="Thiết bị trực tuyến" sub={connected ? 'SignalR kết nối' : 'Ngoại tuyến'} />
             </div>
 
             {/* Main grid */}
@@ -260,12 +268,12 @@ function DashboardPage() {
                   <h3 style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>Tuân thủ an toàn</h3>
                   <p style={{ fontSize: 12.5, color: 'var(--ink-3)', margin: 0 }}>Tỷ lệ trang bị bảo hộ lao động</p>
                   <div style={{ display: 'grid', placeItems: 'center', padding: '14px 0 18px' }}>
-                    <RadialGauge value={92} />
+                    <RadialGauge value={stats?.ppeComplianceRate ?? 100} />
                   </div>
                   <div className="grid" style={{ gap: 14 }}>
-                    <ComplianceBar label="Mũ bảo hộ" pct={94} color="var(--green)" />
-                    <ComplianceBar label="Áo phản quang" pct={88} color="var(--primary)" />
-                    <ComplianceBar label="Giày bảo hộ" pct={91} color="var(--cyan)" />
+                    <ComplianceBar label="Mũ bảo hộ" pct={stats?.helmetComplianceRate ?? 100} color="var(--green)" />
+                    <ComplianceBar label="Áo phản quang" pct={stats?.vestComplianceRate ?? 100} color="var(--primary)" />
+                    <ComplianceBar label="Giày bảo hộ" pct={stats?.shoesComplianceRate ?? 100} color="var(--cyan)" />
                   </div>
                 </div>
 

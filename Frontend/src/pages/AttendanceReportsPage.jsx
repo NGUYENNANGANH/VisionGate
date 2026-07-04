@@ -154,9 +154,6 @@ function AttendanceReportsPage() {
             <div className="page-head">
               <div>
                 <h1 className="page-title">Báo cáo điểm danh</h1>
-                <p className="page-sub">
-                  Tổng hợp thời gian ra/vào và thống kê số phút đi muộn/về sớm. Mọi lượt Check-in/Check-out trong ngày được gộp làm 1 dòng/người.
-                </p>
               </div>
               <button className="btn btn-green" onClick={handleExportExcel} disabled={exporting}>
                 <Download size={16} />
@@ -213,9 +210,9 @@ function AttendanceReportsPage() {
                   <thead>
                     <tr>
                       <th>NGÀY</th>
-                      <th>ID / MÃ NV</th>
-                      <th>LẦN QUÉT ĐẦU (CHECK-IN)</th>
-                      <th>LẦN QUÉT CUỐI (CHECK-OUT)</th>
+                      <th>NHÂN VIÊN</th>
+                      <th>CHECK-IN</th>
+                      <th>CHECK-OUT</th>
                       <th>ĐI MUỘN</th>
                       <th>VỀ SỚM</th>
                       <th>TRẠNG THÁI</th>

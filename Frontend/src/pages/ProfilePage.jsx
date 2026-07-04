@@ -13,30 +13,40 @@ const roleLabel = (role) =>
   role === 1 || role === "Admin" ? "HR Admin" : "Viewer";
 
 /* ── Tab 1: Hồ sơ ── */
-function ProfileTab({ user }) {
+function ProfileTab({ user, onOpenPasswordModal }) {
   const hue = getHue(user?.fullName);
   return (
     <div className="card settings-card">
-      <h3 style={{ fontFamily: "var(--display)", fontSize: 18, fontWeight: 700, margin: "0 0 4px" }}>Hồ sơ cá nhân</h3>
-      <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 24px" }}>Thông tin tài khoản của bạn trong hệ thống</p>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <h3 style={{ fontFamily: "var(--display)", fontSize: 18, fontWeight: 700, margin: "0 0 4px" }}>Hồ sơ cá nhân</h3>
+          <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 24px" }}>Thông tin tài khoản của bạn trong hệ thống</p>
+        </div>
+        <button className="btn" onClick={onOpenPasswordModal} style={{ background: "var(--surface)", border: "1px solid var(--border-2)", color: "var(--ink)", fontWeight: 600, fontSize: 13.5, padding: "8px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 8, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+          <Icon name="history" size={15} stroke={2.2} /> Đổi mật khẩu
+        </button>
+      </div>
 
       {/* Avatar header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--border-2)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 32, paddingBottom: 24, borderBottom: "1px solid var(--border-2)" }}>
         <div style={{
-          width: 72, height: 72, borderRadius: 18, flexShrink: 0,
-          background: `linear-gradient(135deg, hsl(${hue} 55% 55%), hsl(${hue + 30} 60% 45%))`,
-          display: "grid", placeItems: "center", color: "#fff", fontWeight: 800, fontSize: 26,
-          boxShadow: "0 8px 20px -8px rgba(14,163,158,.35)",
+          width: 80, height: 80, borderRadius: "50%", flexShrink: 0,
+          background: "#c01736", border: "4px solid #fbe5e9",
+          display: "grid", placeItems: "center", color: "#fff", fontWeight: 800, fontSize: 28,
         }}>
           {getInitials(user?.fullName)}
         </div>
         <div>
-          <div style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 20, color: "var(--ink)" }}>
-            {user?.fullName || "Administrator"}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 18, color: "var(--ink)" }}>
+              {user?.fullName || "Administrator"}
+            </div>
+            <span className="badge badge-teal" style={{ textTransform: "uppercase", fontSize: 10, fontWeight: 700, padding: "3px 10px" }}>
+              {roleLabel(user?.role)}
+            </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-            <span className="badge badge-teal">{roleLabel(user?.role)}</span>
-            <span style={{ fontSize: 13, color: "var(--ink-3)" }}>{user?.email || ""}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, color: "var(--ink-3)", fontSize: 13 }}>
+            <Icon name="mail" size={14} /> {user?.email || "admin@visiongate.com"}
           </div>
         </div>
       </div>
@@ -45,31 +55,31 @@ function ProfileTab({ user }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <div className="field">
           <label>Họ và tên</label>
-          <input className="input" defaultValue={user?.fullName} disabled />
+          <input className="input" defaultValue={user?.fullName} disabled style={{ background: "var(--surface-2)", color: "var(--ink-2)", borderColor: "var(--border-2)" }} />
         </div>
         <div className="field">
           <label>Email</label>
-          <input className="input" defaultValue={user?.email} disabled />
+          <input className="input" defaultValue={user?.email} disabled style={{ background: "var(--surface-2)", color: "var(--ink-2)", borderColor: "var(--border-2)" }} />
         </div>
         <div className="field">
           <label>Tên đăng nhập</label>
-          <input className="input" defaultValue={user?.username || user?.fullName} disabled />
+          <input className="input" defaultValue={user?.username || user?.fullName} disabled style={{ background: "var(--surface-2)", color: "var(--ink-2)", borderColor: "var(--border-2)" }} />
         </div>
         <div className="field">
           <label>Vai trò</label>
-          <input className="input" defaultValue={roleLabel(user?.role)} disabled />
+          <input className="input" defaultValue={roleLabel(user?.role)} disabled style={{ background: "var(--surface-2)", color: "var(--ink-2)", borderColor: "var(--border-2)" }} />
         </div>
       </div>
 
-      <p style={{ marginTop: 16, fontSize: 12.5, color: "var(--ink-4)" }}>
-        Để thay đổi thông tin, vui lòng liên hệ quản trị viên hệ thống.
-      </p>
+      <div style={{ marginTop: 28, paddingTop: 16, borderTop: "1px solid var(--border-2)", display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--ink-4)", fontStyle: "italic" }}>
+        <Icon name="info" size={14} /> Để thay đổi thông tin, vui lòng liên hệ quản trị viên hệ thống.
+      </div>
     </div>
   );
 }
 
 /* ── Tab 2: Bảo mật ── */
-function SecurityTab() {
+function ChangePasswordModal({ onClose }) {
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ text: "", ok: true });
@@ -90,17 +100,22 @@ function SecurityTab() {
   };
 
   return (
-    <div className="card settings-card">
-      <h3 style={{ fontFamily: "var(--display)", fontSize: 18, fontWeight: 700, margin: "0 0 4px" }}>Bảo mật & Mật khẩu</h3>
-      <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 24px" }}>Đảm bảo tài khoản dùng mật khẩu mạnh để bảo vệ hệ thống</p>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content fade-in" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3 style={{ margin: 0, fontSize: 18, fontFamily: "var(--display)" }}>Đổi mật khẩu</h3>
+          <button className="icon-btn" onClick={onClose}><Icon name="x" size={18} /></button>
+        </div>
+        <div className="modal-body" style={{ padding: "20px 24px" }}>
+          <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 24px" }}>Cập nhật mật khẩu mới để bảo vệ tài khoản của bạn</p>
+          
+          {msg.text && (
+            <div className={msg.ok ? "alert-success" : "alert-danger"} style={{ marginBottom: 20 }}>{msg.text}</div>
+          )}
 
-      {msg.text && (
-        <div className={msg.ok ? "alert-success" : "alert-danger"} style={{ marginBottom: 20 }}>{msg.text}</div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-        <div className="field">
-          <label>Mật khẩu hiện tại</label>
+          <form onSubmit={handleSubmit}>
+            <div className="field" style={{ marginBottom: 20 }}>
+              <label>Mật khẩu hiện tại</label>
           <div style={{ position: "relative" }}>
             <Icon name="lock" size={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)" }} />
             <input className="input" style={{ paddingLeft: 40 }} type="password"
@@ -108,37 +123,42 @@ function SecurityTab() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
-          <div className="field" style={{ margin: 0 }}>
-            <label>Mật khẩu mới</label>
-            <div style={{ position: "relative" }}>
-              <Icon name="lock" size={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)" }} />
-              <input className="input" style={{ paddingLeft: 40 }} type="password"
-                value={pw.next} onChange={e => setPw(p => ({ ...p, next: e.target.value }))} placeholder="••••••••" />
-            </div>
-          </div>
-          <div className="field" style={{ margin: 0 }}>
-            <label>Xác nhận mật khẩu mới</label>
-            <div style={{ position: "relative" }}>
-              <Icon name="lock" size={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)" }} />
-              <input className="input" style={{ paddingLeft: 40 }} type="password"
-                value={pw.confirm} onChange={e => setPw(p => ({ ...p, confirm: e.target.value }))} placeholder="••••••••" />
-            </div>
+        <div className="field" style={{ marginBottom: 20 }}>
+          <label>Mật khẩu mới</label>
+          <div style={{ position: "relative" }}>
+            <Icon name="lock" size={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)" }} />
+            <input className="input" style={{ paddingLeft: 40 }} type="password"
+              value={pw.next} onChange={e => setPw(p => ({ ...p, next: e.target.value }))} placeholder="••••••••" />
           </div>
         </div>
 
-        <button className="btn btn-primary" type="submit" disabled={loading}>
-          <Icon name="check" size={16} stroke={2.6} />
-          {loading ? "Đang lưu..." : "Đổi mật khẩu"}
-        </button>
-      </form>
+        <div className="field" style={{ marginBottom: 24 }}>
+          <label>Xác nhận mật khẩu mới</label>
+          <div style={{ position: "relative" }}>
+            <Icon name="lock" size={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)" }} />
+            <input className="input" style={{ paddingLeft: 40 }} type="password"
+              value={pw.confirm} onChange={e => setPw(p => ({ ...p, confirm: e.target.value }))} placeholder="••••••••" />
+          </div>
+        </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 32 }}>
+              <button type="button" className="btn btn-outline" onClick={onClose}>Hủy</button>
+              <button className="btn btn-primary" type="submit" disabled={loading} style={{ minWidth: 140 }}>
+                <Icon name="check" size={16} stroke={2.6} />
+                {loading ? "Đang lưu..." : "Xác nhận đổi"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }
 
 function ProfilePage() {
   const [user] = useState(() => authService.getUser());
-  const [tab, setTab] = useState("profile");
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+
   const navigate = useNavigate();
   const handleLogout = () => { authService.logout(); navigate("/login"); };
   if (!user) return null;
@@ -150,29 +170,23 @@ function ProfilePage() {
         <Header onLogout={handleLogout} />
         <div className="page">
           <div className="page-inner fade-in">
-            <div className="page-head">
+            <div className="page-head" style={{ marginBottom: 32 }}>
               <div>
                 <h1 className="page-title">Tài khoản của tôi</h1>
-                <p className="page-sub">Hồ sơ cá nhân và bảo mật</p>
+                <p style={{ color: "var(--ink-3)", fontSize: 13, marginTop: 6 }}>Quản lý thông tin hồ sơ và bảo mật của bạn trong hệ thống VisionGate.</p>
               </div>
             </div>
 
             <div>
-              <div className="tabs" style={{ marginBottom: 22 }}>
-                  <button className={`tab ${tab === "profile" ? "active" : ""}`} onClick={() => setTab("profile")}>
-                    <Icon name="user" size={15} /> Hồ sơ cá nhân
-                  </button>
-                  <button className={`tab ${tab === "security" ? "active" : ""}`} onClick={() => setTab("security")}>
-                    <Icon name="lock" size={15} /> Bảo mật
-                  </button>
-                </div>
-
-              {tab === "profile" && <ProfileTab user={user} />}
-              {tab === "security" && <SecurityTab />}
+              <ProfileTab user={user} onOpenPasswordModal={() => setShowPasswordModal(true)} />
             </div>
           </div>
         </div>
       </div>
+      
+      {showPasswordModal && (
+        <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />
+      )}
     </div>
   );
 }

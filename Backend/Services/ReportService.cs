@@ -100,6 +100,10 @@ public class ReportService : IReportService
         {
             await BuildAccessLogsSheet(workbook, request);
         }
+        else if (request.ReportType?.ToLower() == "overview")
+        {
+            await BuildOverviewSheet(workbook, request);
+        }
         else
         {
             throw new ArgumentException($"Loại báo cáo không hợp lệ: {request.ReportType}");
@@ -108,6 +112,93 @@ public class ReportService : IReportService
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
         return stream.ToArray();
+    }
+
+    private async Task BuildOverviewSheet(XLWorkbook workbook, ExportExcelRequest request)
+    {
+        var ws = workbook.Worksheets.Add("Tổng quan");
+        
+        var today = DateTime.Today;
+        var totalEmployees = await _context.Employees.CountAsync();
+        var todayCheckIns = await _context.CheckInRecords
+            .Where(c => c.CheckInTime >= today)
+            .Select(c => c.EmployeeId).Distinct().CountAsync();
+        var todayViolations = await _context.Violations
+            .Where(v => v.CreatedAt >= today).CountAsync();
+        var totalDevices = await _context.Devices.CountAsync();
+        var onlineDevices = await _context.Devices.Where(d => d.IsActive).CountAsync();
+
+        ws.Cell(1, 1).Value = "BÁO CÁO TỔNG QUAN AN NINH";
+        ws.Range(1, 1, 1, 4).Merge();
+        ws.Cell(1, 1).Style.Font.Bold = true;
+        ws.Cell(1, 1).Style.Font.FontSize = 16;
+        ws.Cell(1, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        ws.Cell(3, 1).Value = "Ngày xuất báo cáo:";
+        ws.Cell(3, 2).Value = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
+
+        ws.Cell(5, 1).Value = "1. Số liệu thống kê nhanh";
+        ws.Cell(5, 1).Style.Font.Bold = true;
+
+        var statsHeaders = new[] { "Chỉ số", "Giá trị" };
+        ws.Cell(6, 1).Value = statsHeaders[0];
+        ws.Cell(6, 2).Value = statsHeaders[1];
+        StyleHeaderRow(ws, 6, 2);
+
+        ws.Cell(7, 1).Value = "Tổng số nhân viên";
+        ws.Cell(7, 2).Value = totalEmployees;
+        ws.Cell(8, 1).Value = "Nhân viên đang có mặt (Hôm nay)";
+        ws.Cell(8, 2).Value = todayCheckIns;
+        ws.Cell(9, 1).Value = "Số vi phạm (Hôm nay)";
+        ws.Cell(9, 2).Value = todayViolations;
+        ws.Cell(10, 1).Value = "Thiết bị trực tuyến";
+        ws.Cell(10, 2).Value = $"{onlineDevices} / {totalDevices}";
+
+        ws.Range(7, 1, 10, 2).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        ws.Range(7, 1, 10, 2).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+
+        ws.Cell(13, 1).Value = "2. Vi phạm gần đây (Hôm nay)";
+        ws.Cell(13, 1).Style.Font.Bold = true;
+
+        var headers = new[] { "STT", "Mã NV", "Họ tên", "Loại vi phạm", "Trạng thái", "Thời gian" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            ws.Cell(14, i + 1).Value = headers[i];
+        }
+        StyleHeaderRow(ws, 14, headers.Length);
+
+        var recentViolations = await _context.Violations
+            .Include(v => v.Employee)
+            .Where(v => v.CreatedAt >= today)
+            .OrderByDescending(v => v.CreatedAt)
+            .Take(50)
+            .ToListAsync();
+
+        for (int i = 0; i < recentViolations.Count; i++)
+        {
+            var row = i + 15;
+            var item = recentViolations[i];
+            ws.Cell(row, 1).Value = i + 1;
+            ws.Cell(row, 2).Value = item.Employee?.EmployeeCode ?? "N/A";
+            ws.Cell(row, 3).Value = item.Employee?.FullName ?? "N/A";
+            
+            var violationTypeStr = item.ViolationType switch
+            {
+                VisionGate.Models.ViolationType.MissingHelmet => "Thiếu mũ",
+                VisionGate.Models.ViolationType.MissingSafetyVest => "Thiếu áo",
+                VisionGate.Models.ViolationType.MissingSafetyBoots => "Thiếu giày",
+                VisionGate.Models.ViolationType.UnauthorizedAccess => "Người lạ",
+                _ => "Khác"
+            };
+            ws.Cell(row, 4).Value = violationTypeStr;
+            ws.Cell(row, 5).Value = item.IsResolved ? "Đã xử lý" : "Chưa xử lý";
+            ws.Cell(row, 6).Value = item.CreatedAt.ToString("dd/MM/yyyy HH:mm:ss");
+
+            ws.Range(row, 1, row, headers.Length).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            ws.Range(row, 1, row, headers.Length).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        }
+
+        ws.Columns().AdjustToContents();
     }
 
     private async Task BuildAttendanceSheet(XLWorkbook workbook, ExportExcelRequest request)
@@ -297,22 +388,24 @@ public class ReportService : IReportService
 
         foreach (var item in checkIns)
         {
-                        logs.Add(new AccessLogExportDto {
+            logs.Add(new AccessLogExportDto {
                 Time = item.CheckInTime,
                 EmployeeName = item.Employee?.FullName ?? "Khách lạ",
                 EmployeeCode = item.Employee?.EmployeeCode ?? "",
-                Location = item.Device?.Location ?? "Unknown",
+                Location = item.Device?.Location ?? "Thiết bị đã xóa",
+                Status = "ĐIỂM DANH"
             });
         }
 
         foreach (var item in violations)
         {
+            var isStranger = item.ViolationType == VisionGate.Models.ViolationType.UnauthorizedAccess;
             logs.Add(new AccessLogExportDto {
                 Time = item.CreatedAt,
-                EmployeeName = item.Employee?.FullName ?? "N/A",
-                EmployeeCode = item.Employee?.EmployeeCode ?? "N/A",
-                Location = "Unknown",
-                Status = item.ViolationType.ToString()
+                EmployeeName = isStranger ? "Khách lạ" : (item.Employee?.FullName ?? "N/A"),
+                EmployeeCode = isStranger ? "" : (item.Employee?.EmployeeCode ?? "N/A"),
+                Location = "Không xác định", // Violations don't store location directly in this version
+                Status = isStranger ? "KHÁCH LẠ" : "VI PHẠM"
             });
         }
 

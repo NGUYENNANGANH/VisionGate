@@ -229,9 +229,6 @@ function EmployeesPage() {
             <div className="page-head">
               <div>
                 <h1 className="page-title">Quản lý nhân viên</h1>
-                <p className="page-sub">
-                  Quản lý thông tin nhân viên và phân quyền truy cập
-                </p>
               </div>
               <button className="btn btn-primary" onClick={handleAdd}>
                 <Plus size={20} />

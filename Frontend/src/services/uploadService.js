@@ -12,14 +12,15 @@ export const uploadService = {
       throw new Error("No file provided");
     }
 
-    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    const isVideo = file.type.startsWith("video/");
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "video/mp4", "video/webm", "video/quicktime"];
     if (!validTypes.includes(file.type)) {
-      throw new Error("Chi chap nhan file anh JPG, PNG, WEBP");
+      throw new Error("Chi chap nhan file anh (JPG, PNG) hoac video (MP4, MOV)");
     }
 
-    const maxSize = 5 * 1024 * 1024;
+    const maxSize = isVideo ? 100 * 1024 * 1024 : 5 * 1024 * 1024;
     if (file.size > maxSize) {
-      throw new Error("Kich thuoc anh khong duoc vuot qua 5MB");
+      throw new Error(isVideo ? "Kich thuoc video khong duoc vuot qua 100MB" : "Kich thuoc anh khong duoc vuot qua 5MB");
     }
 
     const formData = new FormData();
@@ -27,9 +28,11 @@ export const uploadService = {
     formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
     formData.append("folder", folder);
 
+    const resourceType = isVideo ? "video" : "image";
+
     try {
       const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`,
         {
           method: "POST",
           body: formData,
@@ -47,7 +50,7 @@ export const uploadService = {
       };
     } catch (error) {
       console.error("Cloudinary upload error:", error);
-      throw new Error("Khong the upload anh. Vui long thu lai.");
+      throw new Error("Khong the upload file. Vui long thu lai.");
     }
   },
 };

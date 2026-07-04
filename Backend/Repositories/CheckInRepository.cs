@@ -57,7 +57,10 @@ public class CheckInRepository : ICheckInRepository
         var tomorrow = today.AddDays(1);
 
         return await _context.CheckInRecords
-            .CountAsync(c => c.CheckInTime >= today && c.CheckInTime < tomorrow);
+            .Where(c => c.CheckInTime >= today && c.CheckInTime < tomorrow)
+            .Select(c => c.EmployeeId)
+            .Distinct()
+            .CountAsync();
     }
 
 }

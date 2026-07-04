@@ -223,7 +223,6 @@ function SettingsPage() {
             <div className="page-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <h1 className="page-title">Quản lý ca làm việc</h1>
-                <p className="page-sub">Thiết lập giờ giấc cho nhiều ca làm việc khác nhau</p>
               </div>
               <button className="btn-primary" onClick={openAddModal}>
                 <Plus size={18} /> Thêm ca làm việc

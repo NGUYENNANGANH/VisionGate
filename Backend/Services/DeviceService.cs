@@ -44,6 +44,16 @@ public class DeviceService : IDeviceService
         return true;
     }
 
+    public async Task<bool> DeleteDeviceAsync(int id)
+    {
+        var device = await _deviceRepository.GetByIdAsync(id);
+        if (device == null)
+            return false;
+
+        await _deviceRepository.DeleteAsync(device);
+        return true;
+    }
+
     public async Task<bool> DeviceExistsAsync(int id)
     {
         return await _deviceRepository.ExistsAsync(id);
