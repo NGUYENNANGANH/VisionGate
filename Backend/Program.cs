@@ -109,22 +109,18 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5173") // React/Vite ports
+        policy.SetIsOriginAllowed(_ => true) // Cho phép mọi domain (Vercel, HuggingFace)
               .AllowAnyMethod()
               .AllowAnyHeader()
-              .AllowCredentials(); // Required for SignalR
+              .AllowCredentials(); // Bắt buộc cho SignalR
     });
 });
 
 var app = builder.Build();
 
-
-// Configure the HTTP request pipeline.
-      if (app.Environment.IsDevelopment())
-      {
-          app.UseSwagger();
-          app.UseSwaggerUI();
-      }
+// Bật Swagger luôn cho dễ test đồ án (bỏ if Development)
+app.UseSwagger();
+app.UseSwaggerUI();
 
 
 app.UseHttpsRedirection();

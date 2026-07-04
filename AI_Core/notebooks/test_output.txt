@@ -1,0 +1,83 @@
+Ultralytics 8.4.80 🚀 Python-3.12.13 torch-2.10.0+cu128 CUDA:0 (Tesla T4, 14912MiB)
+Setup complete ✅ (4 CPUs, 31.3 GB RAM, 6960.7/8062.4 GB disk)
+
+oolbelt in /usr/local/lib/python3.12/dist-packages (from roboflow) (1.0.0)
+Requirement already satisfied: filetype in /usr/local/lib/python3.12/dist-packages (from roboflow) (1.2.0)
+Requirement already satisfied: typer<0.26,>=0.12.0 in /usr/local/lib/python3.12/dist-packages (from roboflow) (0.24.1)
+Requirement already satisfied: click>=8.0 in /usr/local/lib/python3.12/dist-packages (from roboflow) (8.3.2)
+Requirement already satisfied: shellingham>=1.3.0 in /usr/local/lib/python3.12/dist-packages (from typer<0.26,>=0.12.0->roboflow) (1.5.4)
+Requirement already satisfied: rich>=12.3.0 in /usr/local/lib/python3.12/dist-packages (from typer<0.26,>=0.12.0->roboflow) (13.9.4)
+Requirement already satisfied: annotated-doc>=0.0.2 in /usr/local/lib/python3.12/dist-packages (from typer<0.26,>=0.12.0->roboflow) (0.0.4)
+Requirement already satisfied: contourpy>=1.0.1 in /usr/local/lib/python3.12/dist-packages (from matplotlib->roboflow) (1.3.3)
+Requirement already satisfied: fonttools>=4.22.0 in /usr/local/lib/python3.12/dist-packages (from matplotlib->roboflow) (4.62.1)
+Requirement already satisfied: packaging>=20.0 in /usr/local/lib/python3.12/dist-packages (from matplotlib->roboflow) (26.2)
+Requirement already satisfied: pyparsing>=2.3.1 in /usr/local/lib/python3.12/dist-packages (from matplotlib->roboflow) (3.3.2)
+Requirement already satisfied: charset_normalizer<4,>=2 in /usr/local/lib/python3.12/dist-packages (from requests->roboflow) (3.4.7)
+Requirement already satisfied: markdown-it-py>=2.2.0 in /usr/local/lib/python3.12/dist-packages (from rich>=12.3.0->typer<0.26,>=0.12.0->roboflow) (4.0.0)
+Requirement already satisfied: pygments<3.0.0,>=2.13.0 in /usr/local/lib/python3.12/dist-packages (from rich>=12.3.0->typer<0.26,>=0.12.0->roboflow) (2.20.0)
+Requirement already satisfied: mdurl~=0.1 in /usr/local/lib/python3.12/dist-packages (from markdown-it-py>=2.2.0->rich>=12.3.0->typer<0.26,>=0.12.0->roboflow) (0.1.2)
+loading Roboflow workspace...
+loading Roboflow project...
+
+train : 942 ảnh
+valid : 138 ảnh
+test  : 250 ảnh
+
+===== KẾT QUẢ KIỂM TRA TRÙNG ẢNH =====
+
+[train vs valid] -> 0 cặp trùng/gần trùng
+
+[train vs test] -> 0 cặp trùng/gần trùng
+
+[valid vs test] -> 0 cặp trùng/gần trùng
+
+[OK] KHONG phat hien trung anh giua cac tap. Dataset sach, mAP dang tin.
+
+
+Da xoa 0 anh ro ri khoi valid/test. Chay lai Cell 2 de xac nhan con 0 cap trung.
+
+━━━━━━━ 5/5 4.7it/s 1.1s0.3s
+                   all        138       1389      0.876      0.805      0.863      0.406
+
+      Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+[K    129/150      4.21G      1.106     0.6054      1.274        111        800: 100% ━━━━━━━━━━━━ 59/59 3.6it/s 16.2s0.3s
+[K                 Class     Images  Instances      Box(P          R      mAP50  mAP50-95): 100% ━━━━━━━━━━━━ 5/5 4.8it/s 1.0s0.3s
+                   all        138       1389      0.885      0.817      0.863      0.405
+[34m[1mEarlyStopping: [0mTraining stopped early as no improvement observed in last 50 epochs. Best results observed at epoch 79, best model saved as best.pt.
+To update EarlyStopping(patience=50) pass a new patience value, i.e. `patience=300` or use `patience=0` to disable EarlyStopping.
+
+129 epochs completed in 0.641 hours.
+Optimizer stripped from /kaggle/working/runs/detect/yolo11_ppe_aug-3/weights/last.pt, 19.2MB
+Optimizer stripped from /kaggle/working/runs/detect/yolo11_ppe_aug-3/weights/best.pt, 19.2MB
+
+Validating /kaggle/working/runs/detect/yolo11_ppe_aug-3/weights/best.pt...
+YOLO11s summary (fused): 101 layers, 9,414,348 parameters, 0 gradients, 21.3 GFLOPs
+[K                 Class     Images  Instances      Box(P          R      mAP50  mAP50-95): 100% ━━━━━━━━━━━━ 5/5 1.5it/s 3.3s0.6s
+                   all        138       1389       0.89      0.826      0.886      0.431
+                 boots        131        418      0.777      0.651      0.742       0.28
+                helmet        118        326      0.933      0.887      0.917      0.444
+                person        138        378       0.94      0.884      0.941      0.539
+                  vest        105        267      0.909      0.884      0.945      0.463
+Speed: 0.2ms preprocess, 4.4ms inference, 0.0ms loss, 4.5ms postprocess per image
+Results saved to [1m/kaggle/working/runs/detect/yolo11_ppe_aug-3[0m
+Run dir: /kaggle/working/runs/detect/yolo11_ppe_aug-3
+
+Ultralytics 8.4.80 🚀 Python-3.12.13 torch-2.10.0+cu128 CUDA:0 (Tesla T4, 14912MiB)
+YOLO11s summary (fused): 101 layers, 9,414,348 parameters, 0 gradients, 21.3 GFLOPs
+[34m[1mval: [0mFast image access ✅ (ping: 0.0±0.0 ms, read: 1514.4±355.8 MB/s, size: 52.3 KB)
+[K[34m[1mval: [0mScanning /kaggle/working/PPE-Detection-1/test/labels.cache... 250 images, 0 backgrounds, 0 corrupt: 100% ━━━━━━━━━━━━ 250/250 38.8Mit/s 0.0s
+[K                 Class     Images  Instances      Box(P          R      mAP50  mAP50-95): 100% ━━━━━━━━━━━━ 16/16 2.4it/s 6.7s0.3s
+                   all        250       2595      0.856      0.781      0.829      0.394
+                 boots        243        849      0.796      0.655      0.718      0.257
+                helmet        211        611      0.911      0.824      0.873      0.399
+                person        250        729      0.914      0.861       0.91      0.509
+                  vest        153        406      0.803      0.786      0.814       0.41
+Speed: 1.6ms preprocess, 14.9ms inference, 0.0ms loss, 6.5ms postprocess per image
+Results saved to [1m/kaggle/working/runs/detect/val-2[0m
+mAP50-95: 0.39360602171025727
+mAP50   : 0.8288115884158236
+
+loading Roboflow workspace...
+loading Roboflow project...
+An error occured when getting the model upload URL: This version already has a trained model. Please generate and train a new version in order to upload model to Roboflow.
+Deploy xong. Xem o tab Models cua project tren Roboflow.

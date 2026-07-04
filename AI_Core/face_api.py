@@ -33,7 +33,8 @@ frame_buffer = None
 lock = threading.Lock()
 model_lock = threading.Lock()    # serialize InsightFace inference giữa các request
 
-BACKEND_URL = "http://localhost:5212"
+import os
+BACKEND_URL = os.getenv("BACKEND_URL", "https://api.nguyennanganh.dev")
 CONFIDENCE_THRESHOLD = 0.4       # ngưỡng cosine distance để coi là khớp khuôn mặt
 known_faces = []                 # [{employee_id, name, embedding np.float32[512]}]
 

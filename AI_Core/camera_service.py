@@ -14,8 +14,9 @@ from unidecode import unidecode
 # Bắt buộc OpenCV dùng TCP để đọc luồng RTSP (tránh lỗi Stream timeout do mất gói tin UDP)
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
 
-BACKEND_URL = "http://localhost:5212"
-FACE_API_URL = "http://localhost:8000"
+import os
+BACKEND_URL = os.getenv("BACKEND_URL", "https://api.nguyennanganh.dev")
+FACE_API_URL = os.getenv("FACE_API_URL", "http://localhost:8000")
 DEVICE_ID = 1
 # Camera Dahua DH-IPC-HFW1539DTK2-SAW-IL.
 # IP lấy ĐỘNG từ giao diện web (Device.IpAddress qua API). Mật khẩu giữ tại đây cho an toàn (không đưa lên web).

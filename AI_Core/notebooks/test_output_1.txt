@@ -1,0 +1,69 @@
+Ultralytics 8.4.81 🚀 Python-3.12.13 torch-2.10.0+cu128 CUDA:0 (Tesla T4, 14912MiB)
+Setup complete ✅ (4 CPUs, 31.3 GB RAM, 6960.6/8062.4 GB disk)
+
+
+Extracting Dataset Version Zip to PPE-Detection-1 in yolov11:: 100%|██████████| 2665/2665 [00:00<00:00, 7989.38it/s]
+
+train : 942 ảnh
+valid : 138 ảnh
+test  : 250 ảnh
+
+===== KẾT QUẢ KIỂM TRA TRÙNG ẢNH =====
+
+[train vs valid] -> 0 cặp trùng/gần trùng
+
+[train vs test] -> 0 cặp trùng/gần trùng
+
+[valid vs test] -> 0 cặp trùng/gần trùng
+
+[OK] KHONG phat hien trung anh giua cac tap. Dataset sach, mAP dang tin.
+
+
+Da xoa 0 anh ro ri khoi valid/test. Chay lai Cell 2 de xac nhan con 0 cap trung.
+
+s
+                   all        138       1389      0.872       0.82      0.866       0.42
+
+      Epoch    GPU_mem   box_loss   cls_loss   dfl_loss  Instances       Size
+[K     90/150      6.56G      1.311     0.7022      1.419        148        800: 100% ━━━━━━━━━━━━ 59/59 1.9it/s 31.1s0.5ss
+[K                 Class     Images  Instances      Box(P          R      mAP50  mAP50-95): 100% ━━━━━━━━━━━━ 5/5 2.8it/s 1.8s0.5s
+                   all        138       1389      0.875      0.823      0.869      0.422
+[34m[1mEarlyStopping: [0mTraining stopped early as no improvement observed in last 50 epochs. Best results observed at epoch 40, best model saved as best.pt.
+To update EarlyStopping(patience=50) pass a new patience value, i.e. `patience=300` or use `patience=0` to disable EarlyStopping.
+
+90 epochs completed in 0.859 hours.
+Optimizer stripped from /kaggle/working/runs/detect/yolo11_ppe_aug_medium/weights/last.pt, 40.6MB
+Optimizer stripped from /kaggle/working/runs/detect/yolo11_ppe_aug_medium/weights/best.pt, 40.6MB
+
+Validating /kaggle/working/runs/detect/yolo11_ppe_aug_medium/weights/best.pt...
+YOLO11m summary (fused): 126 layers, 20,033,116 parameters, 0 gradients, 67.7 GFLOPs
+[K                 Class     Images  Instances      Box(P          R      mAP50  mAP50-95): 100% ━━━━━━━━━━━━ 5/5 1.4it/s 3.6s0.9s
+                   all        138       1389       0.86      0.804      0.861      0.422
+                 boots        131        418      0.763      0.636      0.708       0.27
+                helmet        118        326      0.941      0.883      0.924      0.441
+                person        138        378      0.886      0.864      0.914      0.522
+                  vest        105        267      0.851      0.832      0.896      0.455
+Speed: 0.2ms preprocess, 10.6ms inference, 0.0ms loss, 6.6ms postprocess per image
+Results saved to [1m/kaggle/working/runs/detect/yolo11_ppe_aug_medium[0m
+Run dir: /kaggle/working/runs/detect/yolo11_ppe_aug_medium
+
+Ultralytics 8.4.81 🚀 Python-3.12.13 torch-2.10.0+cu128 CUDA:0 (Tesla T4, 14912MiB)
+YOLO11m summary (fused): 126 layers, 20,033,116 parameters, 0 gradients, 67.7 GFLOPs
+[34m[1mval: [0mFast image access ✅ (ping: 0.0±0.0 ms, read: 21.2±16.8 MB/s, size: 68.1 KB)
+[K[34m[1mval: [0mScanning /kaggle/working/PPE-Detection-1/test/labels... 250 images, 0 backgrounds, 0 corrupt: 100% ━━━━━━━━━━━━ 250/250 599.7it/s 0.4s0.0s
+[34m[1mval: [0mNew cache created: /kaggle/working/PPE-Detection-1/test/labels.cache
+[K                 Class     Images  Instances      Box(P          R      mAP50  mAP50-95): 100% ━━━━━━━━━━━━ 16/16 1.3it/s 12.6s0.8s
+                   all        250       2595      0.842      0.773      0.826      0.401
+                 boots        243        849      0.792      0.623      0.712      0.264
+                helmet        211        611      0.911      0.836      0.894      0.406
+                person        250        729      0.892      0.852      0.904      0.518
+                  vest        153        406      0.775      0.781      0.794      0.415
+Speed: 1.5ms preprocess, 43.6ms inference, 0.0ms loss, 1.8ms postprocess per image
+Results saved to [1m/kaggle/working/runs/detect/val[0m
+mAP50-95: 0.40078190091411264
+mAP50   : 0.8260873229713206
+
+loading Roboflow workspace...
+loading Roboflow project...
+An error occured when getting the model upload URL: This version already has a trained model. Please generate and train a new version in order to upload model to Roboflow.
+Deploy xong. Xem o tab Models cua project tren Roboflow.
