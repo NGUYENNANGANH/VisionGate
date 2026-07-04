@@ -3,8 +3,10 @@ import base64
 import struct
 import time
 
-BACKEND_URL = "http://localhost:5212/api/employees"
-FACE_API_URL = "http://localhost:5000/api/encode"
+import os
+
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:5212/api/employees")
+FACE_API_URL = os.getenv("FACE_API_URL", "http://localhost:8000/api/encode")
 
 def migrate():
     print("Start migrating embeddings to InsightFace (512-dim ArcFace)...")

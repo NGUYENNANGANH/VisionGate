@@ -1,7 +1,8 @@
 import { useState } from "react";
 import "./LiveFeed.css";
+import { AI_CORE_URL } from "../../config/constants";
 
-const STREAM_URL = "http://localhost:5000/camera/stream";
+const STREAM_URL = `${AI_CORE_URL}/camera/stream`;
 
 function LiveFeed({ connected }) {
   const [streamError, setStreamError] = useState(false);

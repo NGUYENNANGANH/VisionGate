@@ -9,8 +9,10 @@ import io
 # Force UTF-8 output
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-BACKEND_URL = "http://localhost:5212/api/employees"
-FACE_API_URL = "http://localhost:5000/api/encode"
+import os
+
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:5212/api/employees")
+FACE_API_URL = os.getenv("FACE_API_URL", "http://localhost:8000/api/encode")
 
 def debug():
     res = requests.get(BACKEND_URL, timeout=5)

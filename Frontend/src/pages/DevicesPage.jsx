@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Wifi, WifiOff, MapPin, X, Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService";
+import { AI_CORE_URL } from "../config/constants";
 import { uploadService } from "../services/uploadService";
 import api from "../services/api";
 import Sidebar from "../components/layout/Sidebar";
@@ -153,7 +154,7 @@ function DevicesPage() {
                           title="Bấm để xem phóng to"
                         >
                           <img 
-                            src={`http://localhost:8000/camera/stream?deviceId=${d.deviceId}`} 
+                            src={`${AI_CORE_URL}/camera/stream?deviceId=${d.deviceId}`} 
                             style={{ width: "100%", height: "100%", objectFit: "contain", position: "absolute", inset: 0, zIndex: 1 }} 
                             alt="Camera Feed"
                             onError={(e) => {
@@ -324,7 +325,7 @@ function DevicesPage() {
                     {viewingDevice.deviceName} - {viewingDevice.location}
                   </div>
                   <img 
-                    src={`http://localhost:8000/camera/stream?deviceId=${viewingDevice.deviceId}`} 
+                    src={`${AI_CORE_URL}/camera/stream?deviceId=${viewingDevice.deviceId}`} 
                     style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} 
                     alt="Camera Fullscreen"
                   />

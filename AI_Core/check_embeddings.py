@@ -3,7 +3,8 @@ import requests
 import base64
 import struct
 
-BACKEND_URL = "http://localhost:5212/api/employees"
+import os
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:5212/api/employees")
 
 def check():
     try:

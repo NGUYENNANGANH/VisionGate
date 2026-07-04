@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AI_CORE_URL } from "../../config/constants";
 
 function Silhouette({ left, scale, hue }) {
   return (
@@ -39,8 +40,8 @@ function cornerStyle(c) {
   return { ...base, bottom: m, right: m, borderBottomWidth: 2, borderRightWidth: 2, borderBottomRightRadius: 6 };
 }
 
-export function AICameraFeed({ height = 360, label = 'Cổng chính — CAM-01' }) {
-  const [streamUrl] = React.useState(`http://localhost:5000/camera/stream?deviceId=1&t=${Date.now()}`);
+export function AICameraFeed({ cameraId = 1, isActive = true, height = 360, label = 'Cổng chính — CAM-01' }) {
+  const [streamUrl] = React.useState(`${AI_CORE_URL}/camera/stream?deviceId=${cameraId}&t=${Date.now()}`);
   return (
     <div style={{
       position: 'relative', height, borderRadius: 16, overflow: 'hidden',
