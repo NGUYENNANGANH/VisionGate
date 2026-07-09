@@ -40,7 +40,8 @@ export const uploadService = {
       );
 
       if (!response.ok) {
-        throw new Error("Upload failed");
+        const errData = await response.json();
+        throw new Error(errData?.error?.message || "Upload failed");
       }
 
       const data = await response.json();
@@ -50,7 +51,7 @@ export const uploadService = {
       };
     } catch (error) {
       console.error("Cloudinary upload error:", error);
-      throw new Error("Khong the upload file. Vui long thu lai.");
+      throw new Error(`Lỗi upload: ${error.message}`);
     }
   },
 };

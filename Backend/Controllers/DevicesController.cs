@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using VisionGate.Models;
 using VisionGate.Services.Interfaces;
@@ -15,7 +16,6 @@ public class DevicesController : ControllerBase
         _deviceService = deviceService;
     }
 
-    // GET: api/devices
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Device>>> GetDevices()
     {
@@ -23,28 +23,23 @@ public class DevicesController : ControllerBase
         return Ok(devices);
     }
 
-    // GET: api/devices/5
     [HttpGet("{id}")]
     public async Task<ActionResult<Device>> GetDevice(int id)
     {
         var device = await _deviceService.GetDeviceByIdAsync(id);
-
-        if (device == null)
-            return NotFound();
-
-        return device;
+        return device == null ? NotFound() : device;
     }
 
-    // POST: api/devices
     [HttpPost]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<Device>> CreateDevice(Device device)
     {
         var created = await _deviceService.CreateDeviceAsync(device);
         return CreatedAtAction(nameof(GetDevice), new { id = created.DeviceId }, created);
     }
 
-    // PUT: api/devices/5
     [HttpPut("{id}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> UpdateDevice(int id, Device device)
     {
         var updated = await _deviceService.UpdateDeviceAsync(id, device);
@@ -54,8 +49,8 @@ public class DevicesController : ControllerBase
         return NoContent();
     }
 
-    // DELETE: api/devices/5
     [HttpDelete("{id}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> DeleteDevice(int id)
     {
         try
@@ -63,12 +58,12 @@ public class DevicesController : ControllerBase
             var deleted = await _deviceService.DeleteDeviceAsync(id);
             if (!deleted)
                 return NotFound();
-            
+
             return NoContent();
         }
-        catch (Exception ex)
+        catch
         {
-            return BadRequest(new { message = "Không thể xóa thiết bị do có dữ liệu liên quan (lịch sử điểm danh). Vui lòng thử lại sau." });
+            return BadRequest(new { message = "Khong the xoa thiet bi do co du lieu lien quan." });
         }
     }
 }

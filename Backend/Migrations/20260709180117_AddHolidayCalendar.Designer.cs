@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VisionGate.Data;
 
@@ -11,9 +12,11 @@ using VisionGate.Data;
 namespace VisionGate.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260709180117_AddHolidayCalendar")]
+    partial class AddHolidayCalendar
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -48,11 +51,6 @@ namespace VisionGate.Migrations
                     b.Property<decimal>("FaceConfidence")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
-
-                    b.Property<int>("Status")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
 
                     b.HasKey("CheckInId");
 
@@ -231,49 +229,15 @@ namespace VisionGate.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("HolidayId");
 
-                    b.HasIndex("Date")
-                        .IsUnique();
-
                     b.ToTable("Holidays");
-                });
-
-            modelBuilder.Entity("VisionGate.Models.HolidaySetting", b =>
-                {
-                    b.Property<int>("HolidaySettingId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("HolidaySettingId"));
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("WeeklyOffDays")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.HasKey("HolidaySettingId");
-
-                    b.ToTable("HolidaySettings");
-
-                    b.HasData(
-                        new
-                        {
-                            HolidaySettingId = 1,
-                            UpdatedAt = new DateTime(2026, 7, 9, 0, 0, 0, 0, DateTimeKind.Utc),
-                            WeeklyOffDays = "Saturday,Sunday"
-                        });
                 });
 
             modelBuilder.Entity("VisionGate.Models.PPEDetection", b =>

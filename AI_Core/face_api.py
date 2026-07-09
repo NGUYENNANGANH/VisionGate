@@ -1,6 +1,7 @@
 import time
 import asyncio
 from urllib.parse import urlparse
+import base64
 import cv2
 import numpy as np
 from fastapi import FastAPI, Request, HTTPException
@@ -29,7 +30,8 @@ app.add_middleware(
 MAX_FRAME_SIZE = 5 * 1024 * 1024   # 5 MB per camera frame
 MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB per encode request
 
-frame_buffer = None
+# Multi-camera: lưu frame theo deviceId
+frame_buffers: dict = {}   # {deviceId: bytes}
 lock = threading.Lock()
 model_lock = threading.Lock()    # serialize InsightFace inference giữa các request
 
@@ -156,10 +158,10 @@ def _sync_detect_ppe(img_array):
     
     return {
         "hasHelmet": "helmet" in detected_names,
-        "hasGloves": True, # Mặc định
+        "hasGloves": True,
         "hasSafetyVest": "vest" in detected_names,
         "hasSafetyBoots": "boots" in detected_names,
-        "hasMask": True,   # Mặc định
+        "hasMask": True,
         "ppeConfidenceScore": avg_conf,
         "boxes": ppe_boxes
     }
@@ -198,30 +200,38 @@ async def encode_face(request: UrlRequest):
 
 @app.post("/camera/frame")
 async def receive_frame(request: Request):
-    global frame_buffer
+    device_id = request.query_params.get("deviceId", "default")
     body = await request.body()
-    # H6: giới hạn kích thước frame
     if len(body) > MAX_FRAME_SIZE:
         raise HTTPException(status_code=413, detail="Frame quá lớn (tối đa 5MB)")
     with lock:
-        frame_buffer = body
+        frame_buffers[device_id] = body
     return {"status": "ok"}
 
-def mjpeg_generator():
-    global frame_buffer
+# 1x1 pixel JPEG (black) dùng làm placeholder khi chưa có frame thật
+_BLANK_JPEG = base64.b64decode(
+    "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8U"
+    "HRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgN"
+    "DRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIy"
+    "MjL/wAARCAABAAEDASIAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAA"
+    "AAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAA"
+    "wDAQACEQMRAD8AJQAB/9k="
+)
+
+def mjpeg_generator(device_id: str):
     while True:
         with lock:
-            frame_data = frame_buffer
+            frame_data = frame_buffers.get(device_id)
 
-        if frame_data is not None:
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
+        data = frame_data if frame_data is not None else _BLANK_JPEG
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + data + b'\r\n')
         time.sleep(0.05)  # ~20 FPS cap
 
 @app.get("/camera/stream")
-async def video_feed():
+async def video_feed(deviceId: str = "default"):
     return StreamingResponse(
-        mjpeg_generator(),
+        mjpeg_generator(deviceId),
         media_type="multipart/x-mixed-replace; boundary=frame"
     )
 

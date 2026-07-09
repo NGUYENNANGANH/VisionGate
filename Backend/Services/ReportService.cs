@@ -2,6 +2,7 @@ using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using VisionGate.Data;
 using VisionGate.DTOs;
+using VisionGate.Helpers;
 using VisionGate.Models;
 using VisionGate.Services.Interfaces;
 
@@ -9,6 +10,7 @@ namespace VisionGate.Services;
 
 public class ReportService : IReportService
 {
+    private const string HolidayCheckInStatus = "Ch\u1EA5m c\u00F4ng ng\u00E0y ngh\u1EC9";
     private readonly AppDbContext _context;
 
     public ReportService(AppDbContext context)
@@ -21,6 +23,7 @@ public class ReportService : IReportService
         var query = _context.CheckInRecords
             .Include(c => c.Employee)
                 .ThenInclude(e => e.ShiftConfig)
+            .Where(c => c.Employee != null && c.Employee.IsActive && c.Status == CheckInStatus.Success)
             .AsQueryable();
 
         if (request.FromDate.HasValue)
@@ -36,13 +39,33 @@ public class ReportService : IReportService
             .OrderByDescending(c => c.CheckInTime)
             .ToListAsync();
 
+        var holidayCalendar = await GetHolidayCalendarAsync(request.FromDate, request.ToDate);
+
         var grouped = checkIns
             .GroupBy(c => new { c.EmployeeId, Date = DateOnly.FromDateTime(c.CheckInTime) })
             .Select(g => 
             {
                 var inTime = g.Min(c => TimeOnly.FromDateTime(c.CheckInTime));
                 var outTime = g.Max(c => TimeOnly.FromDateTime(c.CheckInTime));
+                var isHoliday = holidayCalendar.IsHoliday(g.Key.Date.ToDateTime(TimeOnly.MinValue));
                 
+                if (isHoliday)
+                {
+                    return new
+                    {
+                        EmployeeId = g.Key.EmployeeId,
+                        EmployeeName = g.First().Employee.FullName,
+                        EmployeeCode = g.First().Employee.EmployeeCode,
+                        Date = g.Key.Date,
+                        CheckInTime = inTime,
+                        CheckOutTime = outTime == inTime ? null as TimeOnly? : outTime,
+                        LateMinutes = 0,
+                        EarlyLeaveMinutes = 0,
+                        TotalCheckIns = g.Count(),
+                        Status = HolidayCheckInStatus
+                    };
+                }
+
                 var shift = g.First().Employee.ShiftConfig;
                 var shiftStart = shift?.StartTime ?? new TimeOnly(8, 0);
                 var shiftEnd = shift?.EndTime ?? new TimeOnly(17, 0);
@@ -114,14 +137,47 @@ public class ReportService : IReportService
         return stream.ToArray();
     }
 
+    private async Task<HolidayCalendarRule> GetHolidayCalendarAsync(DateTime? fromDate, DateTime? toDate)
+    {
+        var query = _context.Holidays.AsNoTracking().Where(h => h.IsActive);
+
+        if (fromDate.HasValue)
+            query = query.Where(h => h.Date >= fromDate.Value.Date);
+
+        if (toDate.HasValue)
+            query = query.Where(h => h.Date <= toDate.Value.Date);
+
+        var dates = await query.Select(h => h.Date.Date).ToListAsync();
+        var weeklyOffDays = await GetWeeklyOffDaysAsync();
+        return new HolidayCalendarRule(dates.ToHashSet(), weeklyOffDays);
+    }
+
+    private async Task<HashSet<DayOfWeek>> GetWeeklyOffDaysAsync()
+    {
+        var setting = await _context.HolidaySettings.AsNoTracking().FirstOrDefaultAsync(s => s.HolidaySettingId == 1);
+        var weeklyDays = setting?.WeeklyOffDays ?? "Saturday,Sunday";
+
+        return weeklyDays
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(day => Enum.TryParse<DayOfWeek>(day, true, out var parsedDay) ? parsedDay : (DayOfWeek?)null)
+            .Where(day => day.HasValue)
+            .Select(day => day!.Value)
+            .ToHashSet();
+    }
+
+    private sealed record HolidayCalendarRule(HashSet<DateTime> Dates, HashSet<DayOfWeek> WeeklyOffDays)
+    {
+        public bool IsHoliday(DateTime date) => Dates.Contains(date.Date) || WeeklyOffDays.Contains(date.DayOfWeek);
+    }
+
     private async Task BuildOverviewSheet(XLWorkbook workbook, ExportExcelRequest request)
     {
         var ws = workbook.Worksheets.Add("Tổng quan");
         
-        var today = DateTime.Today;
-        var totalEmployees = await _context.Employees.CountAsync();
+        var today = DateTimeHelper.VietnamNow().Date;
+        var activeEmployees = await _context.Employees.Where(e => e.IsActive).CountAsync();
         var todayCheckIns = await _context.CheckInRecords
-            .Where(c => c.CheckInTime >= today)
+            .Where(c => c.Status == CheckInStatus.Success && c.CheckInTime >= today)
             .Select(c => c.EmployeeId).Distinct().CountAsync();
         var todayViolations = await _context.Violations
             .Where(v => v.CreatedAt >= today).CountAsync();
@@ -145,8 +201,8 @@ public class ReportService : IReportService
         ws.Cell(6, 2).Value = statsHeaders[1];
         StyleHeaderRow(ws, 6, 2);
 
-        ws.Cell(7, 1).Value = "Tổng số nhân viên";
-        ws.Cell(7, 2).Value = totalEmployees;
+        ws.Cell(7, 1).Value = "Nhân viên đang làm";
+        ws.Cell(7, 2).Value = activeEmployees;
         ws.Cell(8, 1).Value = "Nhân viên đang có mặt (Hôm nay)";
         ws.Cell(8, 2).Value = todayCheckIns;
         ws.Cell(9, 1).Value = "Số vi phạm (Hôm nay)";
@@ -206,6 +262,7 @@ public class ReportService : IReportService
         var query = _context.CheckInRecords
             .Include(c => c.Employee)
                 .ThenInclude(e => e.ShiftConfig)
+            .Where(c => c.Employee != null && c.Employee.IsActive && c.Status == CheckInStatus.Success)
             .AsQueryable();
 
         if (request.FromDate.HasValue)
@@ -221,13 +278,31 @@ public class ReportService : IReportService
             .OrderByDescending(c => c.CheckInTime)
             .ToListAsync();
 
+        var holidayCalendar = await GetHolidayCalendarAsync(request.FromDate, request.ToDate);
+
         var grouped = checkIns
             .GroupBy(c => new { c.EmployeeId, Date = DateOnly.FromDateTime(c.CheckInTime) })
             .Select(g =>
             {
                 var inTime = g.Min(c => TimeOnly.FromDateTime(c.CheckInTime));
                 var outTime = g.Max(c => TimeOnly.FromDateTime(c.CheckInTime));
+                var isHoliday = holidayCalendar.IsHoliday(g.Key.Date.ToDateTime(TimeOnly.MinValue));
                 
+                if (isHoliday)
+                {
+                    return new
+                    {
+                        EmployeeCode = g.First().Employee.EmployeeCode,
+                        EmployeeName = g.First().Employee.FullName,
+                        Date = g.Key.Date,
+                        CheckInTime = inTime,
+                        CheckOutTime = outTime == inTime ? null as TimeOnly? : outTime,
+                        LateMinutes = 0,
+                        EarlyLeaveMinutes = 0,
+                        Status = HolidayCheckInStatus
+                    };
+                }
+
                 var shift = g.First().Employee.ShiftConfig;
                 var shiftStart = shift?.StartTime ?? new TimeOnly(8, 0);
                 var shiftEnd = shift?.EndTime ?? new TimeOnly(17, 0);
@@ -393,7 +468,7 @@ public class ReportService : IReportService
                 EmployeeName = item.Employee?.FullName ?? "Khách lạ",
                 EmployeeCode = item.Employee?.EmployeeCode ?? "",
                 Location = item.Device?.Location ?? "Thiết bị đã xóa",
-                Status = "ĐIỂM DANH"
+                Status = item.Status == CheckInStatus.RejectedPPE ? "TU CHOI PPE" : "DIEM DANH"
             });
         }
 
@@ -481,7 +556,7 @@ public class ReportService : IReportService
         var endOfDay = date.ToDateTime(TimeOnly.MaxValue);
 
         var records = await _context.CheckInRecords
-            .Where(c => c.EmployeeId == employeeId && c.CheckInTime >= startOfDay && c.CheckInTime <= endOfDay)
+            .Where(c => c.EmployeeId == employeeId && c.Status == CheckInStatus.Success && c.CheckInTime >= startOfDay && c.CheckInTime <= endOfDay)
             .ToListAsync();
 
         if (!records.Any()) return false;
@@ -497,7 +572,7 @@ public class ReportService : IReportService
         var endOfDay = request.Date.ToDateTime(TimeOnly.MaxValue);
 
         var records = await _context.CheckInRecords
-            .Where(c => c.EmployeeId == request.EmployeeId && c.CheckInTime >= startOfDay && c.CheckInTime <= endOfDay)
+            .Where(c => c.EmployeeId == request.EmployeeId && c.Status == CheckInStatus.Success && c.CheckInTime >= startOfDay && c.CheckInTime <= endOfDay)
             .OrderBy(c => c.CheckInTime)
             .ToListAsync();
 
@@ -524,6 +599,7 @@ public class ReportService : IReportService
                     EmployeeId = request.EmployeeId, 
                     CheckInTime = newInTime,
                     FaceConfidence = 100,
+                    Status = CheckInStatus.Success,
                                     };
                 _context.CheckInRecords.Add(firstRecord);
             }
@@ -543,6 +619,7 @@ public class ReportService : IReportService
                     EmployeeId = request.EmployeeId, 
                     CheckInTime = newOutTime,
                     FaceConfidence = 100,
+                    Status = CheckInStatus.Success,
                                     };
                 _context.CheckInRecords.Add(lastRecord);
             }

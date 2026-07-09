@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using VisionGate.Data;
 using VisionGate.DTOs;
 using VisionGate.Hubs;
 using VisionGate.Models;
@@ -13,21 +15,25 @@ namespace VisionGate.Controllers;
 [Route("api/[controller]")]
 public class CheckInsController : ControllerBase
 {
+    private const string HolidayCheckInMessage = "Ghi nh\u1EADn v\u00E0o c\u1ED5ng ng\u00E0y ngh\u1EC9";
     private readonly ICheckInService _checkInService;
     private readonly IPPEDetectionRepository _ppeDetectionRepository;
     private readonly IViolationRepository _violationRepository;
     private readonly IHubContext<VisionGateHub> _hubContext;
+    private readonly AppDbContext _context;
 
     public CheckInsController(
         ICheckInService checkInService,
         IPPEDetectionRepository ppeDetectionRepository,
         IViolationRepository violationRepository,
-        IHubContext<VisionGateHub> hubContext)
+        IHubContext<VisionGateHub> hubContext,
+        AppDbContext context)
     {
         _checkInService = checkInService;
         _ppeDetectionRepository = ppeDetectionRepository;
         _violationRepository = violationRepository;
         _hubContext = hubContext;
+        _context = context;
     }
 
     // GET: api/checkins
@@ -47,7 +53,8 @@ public class CheckInsController : ControllerBase
     {
         try
         {
-         
+            var hasFullPpe = request.HasHelmet && request.HasGloves && request.HasSafetyVest && request.HasSafetyBoots && request.HasMask;
+
             // 1. Create CheckInRecord
             var checkIn = new CheckInRecord
             {
@@ -56,7 +63,8 @@ public class CheckInsController : ControllerBase
                 CheckInImageUrl = request.CheckInImageUrl,
                 FaceConfidence = request.FaceConfidence,
                 CheckInTime = DateTimeHelper.VietnamNow(),
-                            };
+                Status = hasFullPpe ? CheckInStatus.Success : CheckInStatus.RejectedPPE,
+            };
 
             var createdCheckIn = await _checkInService.CreateCheckInAsync(checkIn);
 
@@ -71,8 +79,7 @@ public class CheckInsController : ControllerBase
                 HasMask = request.HasMask,
                 ConfidenceScore = request.PPEConfidenceScore,
                 DetectionData = request.DetectionData,
-                OverallCompliance = request.HasHelmet && request.HasGloves && 
-                                   request.HasSafetyVest && request.HasSafetyBoots && request.HasMask
+                OverallCompliance = hasFullPpe
             };
 
             await _ppeDetectionRepository.AddAsync(ppeDetection);
@@ -102,6 +109,13 @@ public class CheckInsController : ControllerBase
             }
 
             // 5. Return response
+            var checkInDate = createdCheckIn.CheckInTime.Date;
+            var weeklyOffDays = await GetWeeklyOffDaysAsync();
+            var isSpecialHoliday = await _context.Holidays
+                .AsNoTracking()
+                .AnyAsync(h => h.IsActive && h.Date == checkInDate);
+            var isHolidayCheckIn = isSpecialHoliday || weeklyOffDays.Contains(checkInDate.DayOfWeek);
+
             var response = new AIProcessResponse
             {
                 CheckInId = createdCheckIn.CheckInId,
@@ -109,9 +123,13 @@ public class CheckInsController : ControllerBase
                 HasPPE = ppeDetection.OverallCompliance,
                 HasViolations = violations.Any(),
                 ViolationIds = violationIds,
-                Message = violations.Any() 
-                    ? $"Check-in thành công nhưng phát hiện {violations.Count} vi phạm PPE" 
-                    : "Check-in thành công, đầy đủ đồ bảo hộ"
+                Message = isHolidayCheckIn
+                    ? (violations.Any()
+                        ? $"{HolidayCheckInMessage}, bi tu choi diem danh do phat hien {violations.Count} vi pham PPE"
+                        : $"{HolidayCheckInMessage}, \u0111\u1EA7y \u0111\u1EE7 \u0111\u1ED3 b\u1EA3o h\u1ED9")
+                    : (violations.Any()
+                        ? $"Khong diem danh thanh cong do phat hien {violations.Count} vi pham PPE"
+                        : "Check-in th\u00E0nh c\u00F4ng, \u0111\u1EA7y \u0111\u1EE7 \u0111\u1ED3 b\u1EA3o h\u1ED9")
             };
 
             // 6. Send realtime notification to all connected clients
@@ -122,7 +140,9 @@ public class CheckInsController : ControllerBase
                 checkInTime = createdCheckIn.CheckInTime,
                 hasPPE = ppeDetection.OverallCompliance,
                 hasViolations = violations.Any(),
-                violationCount = violations.Count
+                violationCount = violations.Count,
+                isHoliday = isHolidayCheckIn,
+                status = createdCheckIn.Status.ToString()
             });
 
             // Send violation notification if any
@@ -148,6 +168,19 @@ public class CheckInsController : ControllerBase
         }
     }
 
+    private async Task<HashSet<DayOfWeek>> GetWeeklyOffDaysAsync()
+    {
+        var setting = await _context.HolidaySettings.AsNoTracking().FirstOrDefaultAsync(s => s.HolidaySettingId == 1);
+        var weeklyDays = setting?.WeeklyOffDays ?? "Saturday,Sunday";
+
+        return weeklyDays
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(day => Enum.TryParse<DayOfWeek>(day, true, out var parsedDay) ? parsedDay : (DayOfWeek?)null)
+            .Where(day => day.HasValue)
+            .Select(day => day!.Value)
+            .ToHashSet();
+    }
+
     private Violation CreateViolation(int employeeId, int ppeDetectionId, ViolationType type)
     {
         return new Violation
@@ -156,7 +189,7 @@ public class CheckInsController : ControllerBase
             PPEDetectionId = ppeDetectionId,
             ViolationType = type,
             IsResolved = false,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTimeHelper.VietnamNow()
         };
     }
 }

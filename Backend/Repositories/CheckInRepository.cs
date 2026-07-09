@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using VisionGate.Data;
 using VisionGate.Models;
+using VisionGate.Helpers;
 using VisionGate.Repositories.Interfaces;
 
 namespace VisionGate.Repositories;
@@ -53,11 +54,11 @@ public class CheckInRepository : ICheckInRepository
 
     public async Task<int> GetTodayCountAsync()
     {
-        var today = DateTime.UtcNow.Date;
+        var today = DateTimeHelper.VietnamNow().Date;
         var tomorrow = today.AddDays(1);
 
         return await _context.CheckInRecords
-            .Where(c => c.CheckInTime >= today && c.CheckInTime < tomorrow)
+            .Where(c => c.Status == CheckInStatus.Success && c.CheckInTime >= today && c.CheckInTime < tomorrow)
             .Select(c => c.EmployeeId)
             .Distinct()
             .CountAsync();

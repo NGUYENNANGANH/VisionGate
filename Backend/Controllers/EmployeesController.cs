@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VisionGate.DTOs;
@@ -10,6 +11,7 @@ namespace VisionGate.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class EmployeesController : ControllerBase
 {
     private readonly IEmployeeService _employeeService;
@@ -25,7 +27,6 @@ public class EmployeesController : ControllerBase
         _cloudinaryService = cloudinaryService;
         _httpClientFactory = httpClientFactory;
     }
-
     private async Task<byte[]?> GetFaceEmbeddingAsync(string imageUrl)
     {
         var client = _httpClientFactory.CreateClient();
@@ -234,9 +235,9 @@ public class EmployeesController : ControllerBase
             return Conflict(new { message = "Không thể xóa nhân viên vì đã có dữ liệu lịch sử liên quan." });
         }
     }
-
     // GET: api/employees/registered-faces
     [HttpGet("registered-faces")]
+    [AllowAnonymous]
     public async Task<ActionResult<IEnumerable<RegisteredFaceDto>>> GetRegisteredFaces()
     {
         var faces = await _employeeService.GetActiveEmployeeFacesAsync();

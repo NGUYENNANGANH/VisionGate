@@ -43,6 +43,7 @@ public class ReportsController : ControllerBase
 
     // PUT: api/reports/attendance
     [HttpPut("attendance")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<object>> UpdateAttendance([FromBody] UpdateAttendanceRequest request)
     {
         try
@@ -59,6 +60,7 @@ public class ReportsController : ControllerBase
 
     // DELETE: api/reports/attendance
     [HttpDelete("attendance")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult> DeleteAttendance([FromQuery] int employeeId, [FromQuery] DateOnly date)
     {
         try

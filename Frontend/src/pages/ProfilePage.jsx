@@ -20,7 +20,6 @@ function ProfileTab({ user, onOpenPasswordModal }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <h3 style={{ fontFamily: "var(--display)", fontSize: 18, fontWeight: 700, margin: "0 0 4px" }}>Hồ sơ cá nhân</h3>
-          <p style={{ fontSize: 13.5, color: "var(--ink-3)", margin: "0 0 24px" }}>Thông tin tài khoản của bạn trong hệ thống</p>
         </div>
         <button className="btn" onClick={onOpenPasswordModal} style={{ background: "var(--surface)", border: "1px solid var(--border-2)", color: "var(--ink)", fontWeight: 600, fontSize: 13.5, padding: "8px 16px", borderRadius: 8, display: "flex", alignItems: "center", gap: 8, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
           <Icon name="history" size={15} stroke={2.2} /> Đổi mật khẩu
@@ -183,7 +182,6 @@ function ProfilePage() {
             <div className="page-head" style={{ marginBottom: 32 }}>
               <div>
                 <h1 className="page-title">Tài khoản của tôi</h1>
-                <p style={{ color: "var(--ink-3)", fontSize: 13, marginTop: 6 }}>Quản lý thông tin hồ sơ và bảo mật của bạn trong hệ thống VisionGate.</p>
               </div>
             </div>
 

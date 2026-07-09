@@ -18,6 +18,7 @@ const NAV = [
 const NAV_ADMIN = [
   { to: "/admin/users", label: "Tài khoản hệ thống", icon: "shield_user", adminOnly: true },
   { to: "/settings", label: "Quản lý ca làm việc", icon: "settings", requireHR: true },
+  { to: "/holidays", label: "Lịch ngày nghỉ", icon: "calendar", requireHR: true },
 ];
 
 const getInitials = (name = "") =>

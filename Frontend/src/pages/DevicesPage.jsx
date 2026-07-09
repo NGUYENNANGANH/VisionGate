@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Plus, Edit, Trash2, Wifi, WifiOff, MapPin, X, Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService";
@@ -8,6 +8,43 @@ import api from "../services/api";
 import Sidebar from "../components/layout/Sidebar";
 import Header from "../components/layout/Header";
 import "./DevicesPage.css";
+
+// Canvas-based MJPEG renderer — smooth, flicker-free
+function CameraCanvas({ src, style }) {
+  const canvasRef = useRef(null);
+  const imgRef = useRef(new Image());
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    const img = imgRef.current;
+    img.src = src;
+
+    const draw = () => {
+      const canvas = canvasRef.current;
+      if (canvas && img.naturalWidth > 0) {
+        const ctx = canvas.getContext("2d");
+        // Resize canvas to match video aspect ratio
+        const aspectRatio = img.naturalWidth / img.naturalHeight;
+        const w = canvas.clientWidth;
+        const h = w / aspectRatio;
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      }
+      rafRef.current = requestAnimationFrame(draw);
+    };
+
+    rafRef.current = requestAnimationFrame(draw);
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      img.src = "";
+    };
+  }, [src]);
+
+  return <canvas ref={canvasRef} style={style} />;
+}
 
 function DevicesPage() {
   const [user] = useState(() => authService.getUser());
@@ -330,10 +367,9 @@ function DevicesPage() {
                     <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ff4d4f", boxShadow: "0 0 12px #ff4d4f" }}></div>
                     {viewingDevice.deviceName} - {viewingDevice.location}
                   </div>
-                  <img 
-                    src={`${AI_CORE_URL}/camera/stream?deviceId=${viewingDevice.deviceId}`} 
-                    style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} 
-                    alt="Camera Fullscreen"
+                  <CameraCanvas
+                    src={`${AI_CORE_URL}/camera/stream?deviceId=${viewingDevice.deviceId}`}
+                    style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
                   />
                 </div>
               </div>

@@ -1,5 +1,11 @@
 namespace VisionGate.Models;
 
+public enum CheckInStatus
+{
+    Success = 0,
+    RejectedPPE = 1
+}
+
 public class CheckInRecord
 {
     public int CheckInId { get; set; }
@@ -8,6 +14,7 @@ public class CheckInRecord
     public DateTime CheckInTime { get; set; } = DateTime.UtcNow;
     public string? CheckInImageUrl { get; set; }
     public decimal FaceConfidence { get; set; }
+    public CheckInStatus Status { get; set; } = CheckInStatus.Success;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation

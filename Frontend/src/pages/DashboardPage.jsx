@@ -79,9 +79,33 @@ function ComplianceBar({ label, pct, color }) {
   );
 }
 
+const EMPTY_DASHBOARD_STATS = {
+  totalEmployees: 0,
+  todayCheckIns: 0,
+  todayViolations: 0,
+  onlineDevices: 0,
+  totalDevices: 0,
+  ppeComplianceRate: 100,
+  helmetComplianceRate: 100,
+  vestComplianceRate: 100,
+  shoesComplianceRate: 100,
+};
+
+const normalizeDashboardStats = (data = {}) => ({
+  totalEmployees: data.totalEmployees ?? data.TotalEmployees ?? 0,
+  todayCheckIns: data.todayCheckIns ?? data.TodayCheckIns ?? 0,
+  todayViolations: data.todayViolations ?? data.TodayViolations ?? 0,
+  onlineDevices: data.onlineDevices ?? data.OnlineDevices ?? 0,
+  totalDevices: data.totalDevices ?? data.TotalDevices ?? 0,
+  ppeComplianceRate: data.ppeComplianceRate ?? data.PPEComplianceRate ?? 100,
+  helmetComplianceRate: data.helmetComplianceRate ?? data.HelmetComplianceRate ?? 100,
+  vestComplianceRate: data.vestComplianceRate ?? data.VestComplianceRate ?? 100,
+  shoesComplianceRate: data.shoesComplianceRate ?? data.ShoesComplianceRate ?? 100,
+});
+
 function DashboardPage() {
   const [user] = useState(() => authService.getUser());
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState(EMPTY_DASHBOARD_STATS);
   const [connected, setConnected] = useState(false);
   const [recentActivity, setRecentActivity] = useState([]);
   const navigate = useNavigate();
@@ -89,9 +113,9 @@ function DashboardPage() {
   const loadDashboardData = useCallback(async () => {
     try {
       const res = await api.get("/dashboard/stats");
-      setStats(res.data);
+      setStats(normalizeDashboardStats(res.data));
     } catch {
-      setStats({ totalEmployees: 0, todayCheckIns: 0, todayViolations: 0, onlineDevices: 0, totalDevices: 0 });
+      setStats(EMPTY_DASHBOARD_STATS);
     }
   }, []);
 
@@ -105,7 +129,7 @@ function DashboardPage() {
         name: item.employee?.fullName || 'Chưa xác định',
         photo: item.employee?.faceImageUrl || null,
         loc: item.device?.location || 'Thiết bị đã xóa',
-        status: (item.ppeDetection && item.ppeDetection.overallCompliance) ? 'ok' : 'violation',
+        status: item.status === 'RejectedPPE' ? 'rejected' : ((item.ppeDetection && item.ppeDetection.overallCompliance) ? 'ok' : 'violation'),
         time: item.checkInTime ? new Date(item.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—',
         _raw: new Date(item.checkInTime),
       }));
@@ -163,8 +187,7 @@ function DashboardPage() {
   const handleLogout = () => { authService.logout(); navigate("/login"); };
   if (!user) return null;
 
-  const statusColor = s => s === 'ok' ? 'var(--green)' : s === 'violation' ? 'var(--amber)' : 'var(--red)';
-
+  const statusColor = s => s === 'ok' ? 'var(--green)' : s === 'violation' || s === 'rejected' ? 'var(--amber)' : 'var(--red)';
   const [exporting, setExporting] = useState(false);
 
   const handleExport = async () => {
@@ -216,7 +239,7 @@ function DashboardPage() {
 
             {/* KPI cards */}
             <div className="grid" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginBottom: 18 }}>
-              <StatCard icon="users" tone="teal" value={stats?.totalEmployees ?? '—'} label="Tổng số nhân viên" />
+              <StatCard icon="users" tone="teal" value={stats?.totalEmployees ?? '—'} label="Nhân viên đang làm" />
               <StatCard icon="check" tone="green" value={stats?.todayCheckIns ?? '—'} label="Đang có mặt" sub="Hôm nay" />
               <StatCard icon="alert" tone="red" value={stats?.todayViolations ?? '—'} label="Vi phạm hôm nay" />
               <StatCard icon="devices" tone="blue" value={`${stats?.onlineDevices ?? 0}/${stats?.totalDevices ?? 0}`} label="Thiết bị trực tuyến" sub={connected ? 'SignalR kết nối' : 'Ngoại tuyến'} />
@@ -251,8 +274,8 @@ function DashboardPage() {
                           <div style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>{a.loc}</div>
                         </div>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <VGBadge tone={a.status === 'ok' ? 'green' : a.status === 'violation' ? 'amber' : 'red'}>
-                            {a.status === 'ok' ? 'Hợp lệ' : a.status === 'violation' ? 'Vi phạm' : 'Lạ mặt'}
+                          <VGBadge tone={a.status === 'ok' ? 'green' : (a.status === 'violation' || a.status === 'rejected') ? 'amber' : 'red'}>
+                            {a.status === 'ok' ? 'Hợp lệ' : a.status === 'rejected' ? 'Từ chối PPE' : a.status === 'violation' ? 'Vi phạm' : 'Lạ mặt'}
                           </VGBadge>
                           <div className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 5 }}>{a.time}</div>
                         </div>

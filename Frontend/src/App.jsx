@@ -10,6 +10,7 @@ import AdminUsersPage from "./pages/AdminUsersPage";
 import DevicesPage from "./pages/DevicesPage";
 import AccessLogsPage from "./pages/AccessLogsPage";
 import AttendanceReportsPage from "./pages/AttendanceReportsPage";
+import HolidaysPage from "./pages/HolidaysPage";
 import { authService } from "./services/authService";
 import { RoleProtectedRoute } from "./components/auth/RoleProtectedRoute";
 import "./App.css";
@@ -71,6 +72,14 @@ function App() {
           element={
             <RoleProtectedRoute allowedRoles={[0, "SuperAdmin", 1, "Admin"]}>
               <AttendanceReportsPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/holidays"
+          element={
+            <RoleProtectedRoute allowedRoles={[0, "SuperAdmin", 1, "Admin"]}>
+              <HolidaysPage />
             </RoleProtectedRoute>
           }
         />

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using VisionGate.Data;
 using VisionGate.Models;
+using VisionGate.Helpers;
 using VisionGate.Repositories.Interfaces;
 
 namespace VisionGate.Repositories;
@@ -44,7 +45,7 @@ public class ViolationRepository : IViolationRepository
 
     public async Task<int> GetTodayCountAsync()
     {
-        var today = DateTime.UtcNow.Date;
+        var today = DateTimeHelper.VietnamNow().Date;
         var tomorrow = today.AddDays(1);
 
         return await _context.Violations

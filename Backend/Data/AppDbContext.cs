@@ -17,6 +17,8 @@ public class AppDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<ShiftConfig> ShiftConfigs { get; set; }
     public DbSet<EmployeeFace> EmployeeFaces { get; set; }
+    public DbSet<Holiday> Holidays { get; set; }
+    public DbSet<HolidaySetting> HolidaySettings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -59,6 +61,7 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.CheckInId);
             entity.Property(e => e.FaceConfidence).HasPrecision(5, 2);
+            entity.Property(e => e.Status).HasDefaultValue(CheckInStatus.Success);
             entity.HasIndex(e => e.CheckInTime);
             entity.HasIndex(e => new { e.EmployeeId, e.CheckInTime });
             
@@ -145,6 +148,27 @@ public class AppDbContext : DbContext
                 EndTime = new TimeOnly(17, 0),
                 Description = "Ca làm việc mặc định",
                 IsActive = true
+            });
+        });
+        // Holiday
+        modelBuilder.Entity<Holiday>(entity =>
+        {
+            entity.HasKey(e => e.HolidayId);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Type).IsRequired().HasMaxLength(50);
+            entity.HasIndex(e => e.Date).IsUnique();
+        });
+
+        // HolidaySetting
+        modelBuilder.Entity<HolidaySetting>(entity =>
+        {
+            entity.HasKey(e => e.HolidaySettingId);
+            entity.Property(e => e.WeeklyOffDays).IsRequired().HasMaxLength(120);
+            entity.HasData(new HolidaySetting
+            {
+                HolidaySettingId = 1,
+                WeeklyOffDays = "Saturday,Sunday",
+                UpdatedAt = new DateTime(2026, 7, 9, 0, 0, 0, DateTimeKind.Utc)
             });
         });
     }
