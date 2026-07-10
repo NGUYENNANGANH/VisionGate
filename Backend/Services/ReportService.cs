@@ -48,7 +48,9 @@ public class ReportService : IReportService
                 var orderedScans = g.OrderBy(c => c.CheckInTime).ToList();
                 var employee = orderedScans[0].Employee;
                 var checkInRecord = orderedScans.FirstOrDefault(c => c.AttendanceEventType == AttendanceEventType.CheckIn);
-                var checkOutRecord = orderedScans.LastOrDefault(c => c.AttendanceEventType == AttendanceEventType.CheckOut);
+                var checkOutRecord = checkInRecord == null
+                    ? orderedScans.LastOrDefault(c => c.AttendanceEventType == AttendanceEventType.CheckOut)
+                    : orderedScans.LastOrDefault(c => c.AttendanceEventType == AttendanceEventType.CheckOut && c.CheckInTime > checkInRecord.CheckInTime);
                 TimeOnly? inTime = checkInRecord == null ? null : TimeOnly.FromDateTime(checkInRecord.CheckInTime);
                 TimeOnly? outTime = checkOutRecord == null ? null : TimeOnly.FromDateTime(checkOutRecord.CheckInTime);
                 var isHoliday = holidayCalendar.IsHoliday(g.Key.Date.ToDateTime(TimeOnly.MinValue));
@@ -292,7 +294,9 @@ public class ReportService : IReportService
                 var orderedScans = g.OrderBy(c => c.CheckInTime).ToList();
                 var employee = orderedScans[0].Employee;
                 var checkInRecord = orderedScans.FirstOrDefault(c => c.AttendanceEventType == AttendanceEventType.CheckIn);
-                var checkOutRecord = orderedScans.LastOrDefault(c => c.AttendanceEventType == AttendanceEventType.CheckOut);
+                var checkOutRecord = checkInRecord == null
+                    ? orderedScans.LastOrDefault(c => c.AttendanceEventType == AttendanceEventType.CheckOut)
+                    : orderedScans.LastOrDefault(c => c.AttendanceEventType == AttendanceEventType.CheckOut && c.CheckInTime > checkInRecord.CheckInTime);
                 TimeOnly? inTime = checkInRecord == null ? null : TimeOnly.FromDateTime(checkInRecord.CheckInTime);
                 TimeOnly? outTime = checkOutRecord == null ? null : TimeOnly.FromDateTime(checkOutRecord.CheckInTime);
                 var isHoliday = holidayCalendar.IsHoliday(g.Key.Date.ToDateTime(TimeOnly.MinValue));
