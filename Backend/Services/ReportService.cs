@@ -45,8 +45,11 @@ public class ReportService : IReportService
             .GroupBy(c => new { c.EmployeeId, Date = DateOnly.FromDateTime(c.CheckInTime) })
             .Select(g => 
             {
-                var inTime = g.Min(c => TimeOnly.FromDateTime(c.CheckInTime));
-                var outTime = g.Max(c => TimeOnly.FromDateTime(c.CheckInTime));
+                var orderedScans = g.OrderBy(c => c.CheckInTime).ToList();
+                var firstScan = orderedScans[0];
+                var secondScan = orderedScans.Count >= 2 ? orderedScans[1] : null;
+                var inTime = TimeOnly.FromDateTime(firstScan.CheckInTime);
+                TimeOnly? outTime = secondScan == null ? null : TimeOnly.FromDateTime(secondScan.CheckInTime);
                 var isHoliday = holidayCalendar.IsHoliday(g.Key.Date.ToDateTime(TimeOnly.MinValue));
                 
                 if (isHoliday)
@@ -54,11 +57,11 @@ public class ReportService : IReportService
                     return new
                     {
                         EmployeeId = g.Key.EmployeeId,
-                        EmployeeName = g.First().Employee.FullName,
-                        EmployeeCode = g.First().Employee.EmployeeCode,
+                        EmployeeName = firstScan.Employee.FullName,
+                        EmployeeCode = firstScan.Employee.EmployeeCode,
                         Date = g.Key.Date,
                         CheckInTime = inTime,
-                        CheckOutTime = outTime == inTime ? null as TimeOnly? : outTime,
+                        CheckOutTime = outTime,
                         LateMinutes = 0,
                         EarlyLeaveMinutes = 0,
                         TotalCheckIns = g.Count(),
@@ -66,26 +69,26 @@ public class ReportService : IReportService
                     };
                 }
 
-                var shift = g.First().Employee.ShiftConfig;
+                var shift = firstScan.Employee.ShiftConfig;
                 var shiftStart = shift?.StartTime ?? new TimeOnly(8, 0);
                 var shiftEnd = shift?.EndTime ?? new TimeOnly(17, 0);
                 
                 // Nếu quyét duy nhất 1 lần, hoặc lần quét sau cách lần quét đầu < 1 phút thì coi như quên Check-Out (giảm từ 5 phút xuống 1 phút để dễ test)
-                bool isMissingCheckOut = g.Count() == 1 || (outTime - inTime).TotalMinutes < 1; 
+                bool isMissingCheckOut = !outTime.HasValue || (outTime.Value - inTime).TotalMinutes < 1; 
 
                 int lateMins = inTime > shiftStart ? (int)(inTime - shiftStart).TotalMinutes : 0;
                 int earlyMins = 0;
                 
-                if (!isMissingCheckOut && outTime < shiftEnd)
+                if (!isMissingCheckOut && outTime!.Value < shiftEnd)
                 {
-                    earlyMins = (int)(shiftEnd - outTime).TotalMinutes;
+                    earlyMins = (int)(shiftEnd - outTime.Value).TotalMinutes;
                 }
 
                 return new
                 {
                     EmployeeId = g.Key.EmployeeId,
-                    EmployeeName = g.First().Employee.FullName,
-                    EmployeeCode = g.First().Employee.EmployeeCode,
+                    EmployeeName = firstScan.Employee.FullName,
+                    EmployeeCode = firstScan.Employee.EmployeeCode,
                     Date = g.Key.Date,
                     CheckInTime = inTime,
                     CheckOutTime = isMissingCheckOut ? null as TimeOnly? : outTime,
@@ -284,42 +287,45 @@ public class ReportService : IReportService
             .GroupBy(c => new { c.EmployeeId, Date = DateOnly.FromDateTime(c.CheckInTime) })
             .Select(g =>
             {
-                var inTime = g.Min(c => TimeOnly.FromDateTime(c.CheckInTime));
-                var outTime = g.Max(c => TimeOnly.FromDateTime(c.CheckInTime));
+                var orderedScans = g.OrderBy(c => c.CheckInTime).ToList();
+                var firstScan = orderedScans[0];
+                var secondScan = orderedScans.Count >= 2 ? orderedScans[1] : null;
+                var inTime = TimeOnly.FromDateTime(firstScan.CheckInTime);
+                TimeOnly? outTime = secondScan == null ? null : TimeOnly.FromDateTime(secondScan.CheckInTime);
                 var isHoliday = holidayCalendar.IsHoliday(g.Key.Date.ToDateTime(TimeOnly.MinValue));
                 
                 if (isHoliday)
                 {
                     return new
                     {
-                        EmployeeCode = g.First().Employee.EmployeeCode,
-                        EmployeeName = g.First().Employee.FullName,
+                        EmployeeCode = firstScan.Employee.EmployeeCode,
+                        EmployeeName = firstScan.Employee.FullName,
                         Date = g.Key.Date,
                         CheckInTime = inTime,
-                        CheckOutTime = outTime == inTime ? null as TimeOnly? : outTime,
+                        CheckOutTime = outTime,
                         LateMinutes = 0,
                         EarlyLeaveMinutes = 0,
                         Status = HolidayCheckInStatus
                     };
                 }
 
-                var shift = g.First().Employee.ShiftConfig;
+                var shift = firstScan.Employee.ShiftConfig;
                 var shiftStart = shift?.StartTime ?? new TimeOnly(8, 0);
                 var shiftEnd = shift?.EndTime ?? new TimeOnly(17, 0);
 
-                bool isMissingCheckOut = g.Count() == 1 || (outTime - inTime).TotalMinutes < 1;
+                bool isMissingCheckOut = !outTime.HasValue || (outTime.Value - inTime).TotalMinutes < 1;
 
                 int lateMins = inTime > shiftStart ? (int)(inTime - shiftStart).TotalMinutes : 0;
                 int earlyMins = 0;
-                if (!isMissingCheckOut && outTime < shiftEnd)
+                if (!isMissingCheckOut && outTime!.Value < shiftEnd)
                 {
-                    earlyMins = (int)(shiftEnd - outTime).TotalMinutes;
+                    earlyMins = (int)(shiftEnd - outTime.Value).TotalMinutes;
                 }
 
                 return new
                 {
-                    EmployeeCode = g.First().Employee.EmployeeCode,
-                    EmployeeName = g.First().Employee.FullName,
+                    EmployeeCode = firstScan.Employee.EmployeeCode,
+                    EmployeeName = firstScan.Employee.FullName,
                     Date = g.Key.Date,
                     CheckInTime = inTime,
                     CheckOutTime = isMissingCheckOut ? null as TimeOnly? : outTime,
