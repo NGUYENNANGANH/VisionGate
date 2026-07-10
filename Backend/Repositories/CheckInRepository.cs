@@ -64,4 +64,29 @@ public class CheckInRepository : ICheckInRepository
             .CountAsync();
     }
 
+    public async Task<int> GetCurrentlyPresentCountAsync()
+    {
+        var today = DateTimeHelper.VietnamNow().Date;
+        var tomorrow = today.AddDays(1);
+
+        var successfulScans = await _context.CheckInRecords
+            .AsNoTracking()
+            .Where(c => c.Status == CheckInStatus.Success && c.CheckInTime >= today && c.CheckInTime < tomorrow)
+            .Select(c => new { c.EmployeeId, c.CheckInTime, c.AttendanceEventType })
+            .ToListAsync();
+
+        return successfulScans
+            .GroupBy(c => c.EmployeeId)
+            .Count(scans =>
+            {
+                var lastCheckIn = scans
+                    .Where(c => c.AttendanceEventType == AttendanceEventType.CheckIn)
+                    .OrderByDescending(c => c.CheckInTime)
+                    .FirstOrDefault();
+
+                return lastCheckIn != null && !scans.Any(c =>
+                    c.AttendanceEventType == AttendanceEventType.CheckOut &&
+                    c.CheckInTime > lastCheckIn.CheckInTime);
+            });
+    }
 }

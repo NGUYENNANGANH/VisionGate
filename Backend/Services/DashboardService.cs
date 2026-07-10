@@ -29,7 +29,7 @@ public class DashboardService : IDashboardService
     public async Task<object> GetDashboardStatsAsync()
     {
         var totalEmployees = (await _employeeRepository.GetAllAsync(isActive: true)).Count();
-        var todayCheckIns = await _checkInRepository.GetTodayCountAsync();
+        var todayCheckIns = await _checkInRepository.GetCurrentlyPresentCountAsync();
         var todayViolations = await _violationRepository.GetTodayCountAsync();
         
         var allDevices = await _deviceRepository.GetAllAsync();
