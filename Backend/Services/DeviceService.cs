@@ -25,9 +25,10 @@ public class DeviceService : IDeviceService
 
     public async Task<Device> CreateDeviceAsync(Device device)
     {
-        device.CreatedAt = DateTime.UtcNow;
-        device.IsActive = true;
+        NormalizeDevice(device);
+        await EnsureDeviceCodeIsUniqueAsync(device.DeviceCode, null);
 
+        device.CreatedAt = DateTime.UtcNow;
         return await _deviceRepository.AddAsync(device);
     }
 
@@ -39,7 +40,9 @@ public class DeviceService : IDeviceService
         if (!await _deviceRepository.ExistsAsync(id))
             return false;
 
-        
+        NormalizeDevice(device);
+        await EnsureDeviceCodeIsUniqueAsync(device.DeviceCode, id);
+
         await _deviceRepository.UpdateAsync(device);
         return true;
     }
@@ -57,5 +60,29 @@ public class DeviceService : IDeviceService
     public async Task<bool> DeviceExistsAsync(int id)
     {
         return await _deviceRepository.ExistsAsync(id);
+    }
+
+    private static void NormalizeDevice(Device device)
+    {
+        device.DeviceCode = (device.DeviceCode ?? string.Empty).Trim();
+        device.DeviceName = (device.DeviceName ?? string.Empty).Trim();
+        device.Location = (device.Location ?? string.Empty).Trim();
+        device.IpAddress = string.IsNullOrWhiteSpace(device.IpAddress) ? null : device.IpAddress.Trim();
+        device.RtspUsername = string.IsNullOrWhiteSpace(device.RtspUsername) ? null : device.RtspUsername.Trim();
+        device.RtspPassword = string.IsNullOrWhiteSpace(device.RtspPassword) ? null : device.RtspPassword;
+    }
+
+    private async Task EnsureDeviceCodeIsUniqueAsync(string deviceCode, int? currentDeviceId)
+    {
+        if (string.IsNullOrWhiteSpace(deviceCode))
+            throw new InvalidOperationException("Ma thiet bi khong duoc de trong.");
+
+        var devices = await _deviceRepository.GetAllAsync();
+        var exists = devices.Any(d =>
+            (!currentDeviceId.HasValue || d.DeviceId != currentDeviceId.Value) &&
+            string.Equals(d.DeviceCode.Trim(), deviceCode, StringComparison.OrdinalIgnoreCase));
+
+        if (exists)
+            throw new InvalidOperationException("Ma thiet bi da ton tai.");
     }
 }

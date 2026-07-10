@@ -72,6 +72,7 @@ function DevicesPage() {
     if (gateDirection === "Out" || gateDirection === "out" || gateDirection === 1 || gateDirection === "1") return 1;
     return 0;
   };
+  const toGateDirectionPayload = (gateDirection) => normalizeGateDirection(gateDirection) === 1 ? "Out" : "In";
   const getGateLabel = (gateDirection) => normalizeGateDirection(gateDirection) === 1 ? "Cổng ra" : "Cổng vào";
   const getGateBadgeStyle = (gateDirection) => normalizeGateDirection(gateDirection) === 1
     ? { background: "rgba(79, 70, 229, .12)", color: "#4338ca" }
@@ -104,7 +105,7 @@ function DevicesPage() {
     try {
       setIsUploading(true);
       const url = await uploadService.uploadImage(file, "videos");
-      setFormData({ ...formData, ipAddress: url });
+      setFormData((prev) => ({ ...prev, ipAddress: url }));
       alert("Đã tải lên video thành công!");
     } catch (error) {
       alert(error.message || "Lỗi tải video");
@@ -155,17 +156,27 @@ function DevicesPage() {
 
   const handleSave = async (e) => {
     e.preventDefault();
+    if (isUploading) return;
+
+    const payload = {
+      ...formData,
+      gateDirection: toGateDirectionPayload(formData.gateDirection),
+    };
+
     try {
       if (selectedDevice) {
-        await api.put(`/devices/${selectedDevice.deviceId}`, { ...formData, deviceId: selectedDevice.deviceId });
+        await api.put(`/devices/${selectedDevice.deviceId}`, { ...payload, deviceId: selectedDevice.deviceId });
       } else {
-        await api.post("/devices", formData);
+        await api.post("/devices", payload);
       }
       setShowModal(false);
       loadDevices();
     } catch (error) {
       console.error("Failed to save device:", error);
-      alert(error.response?.data?.message || "Có lỗi xảy ra");
+      const validationError = error.response?.data?.errors
+        ? Object.values(error.response.data.errors).flat().join("\n")
+        : null;
+      alert(error.response?.data?.message || validationError || "Có lỗi xảy ra");
     }
   };
 
@@ -295,7 +306,7 @@ function DevicesPage() {
             {/* Modal */}
             {showModal && (
               <div style={{ position: "fixed", inset: 0, background: "rgba(13,21,38,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
-                onClick={() => setShowModal(false)}>
+                onClick={() => { if (!isUploading) setShowModal(false); }}>
                 <div style={{ background: "var(--surface)", padding: "32px 28px", borderRadius: "var(--r-lg)", boxShadow: "var(--sh-lg)", width: 460, maxWidth: "calc(100vw - 32px)" }}
                   onClick={(e) => e.stopPropagation()}>
                   <h2 style={{ margin: "0 0 24px", fontFamily: "var(--display)", fontSize: 20, color: "var(--ink)" }}>
@@ -370,9 +381,9 @@ function DevicesPage() {
                       </label>
                     </div>
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
-                      <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)}>Hủy</button>
-                      <button type="submit" className="btn btn-primary">
-                        {selectedDevice ? "Cập nhật" : "Thêm thiết bị"}
+                      <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)} disabled={isUploading}>Hủy</button>
+                      <button type="submit" className="btn btn-primary" disabled={isUploading}>
+                        {isUploading ? "Đang tải video..." : (selectedDevice ? "Cập nhật" : "Thêm thiết bị")}
                       </button>
                     </div>
                   </form>

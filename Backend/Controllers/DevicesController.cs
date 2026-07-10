@@ -34,19 +34,33 @@ public class DevicesController : ControllerBase
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<Device>> CreateDevice(Device device)
     {
-        var created = await _deviceService.CreateDeviceAsync(device);
-        return CreatedAtAction(nameof(GetDevice), new { id = created.DeviceId }, created);
+        try
+        {
+            var created = await _deviceService.CreateDeviceAsync(device);
+            return CreatedAtAction(nameof(GetDevice), new { id = created.DeviceId }, created);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("{id}")]
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> UpdateDevice(int id, Device device)
     {
-        var updated = await _deviceService.UpdateDeviceAsync(id, device);
-        if (!updated)
-            return NotFound();
+        try
+        {
+            var updated = await _deviceService.UpdateDeviceAsync(id, device);
+            if (!updated)
+                return NotFound();
 
-        return NoContent();
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPatch("{id}/active")]
