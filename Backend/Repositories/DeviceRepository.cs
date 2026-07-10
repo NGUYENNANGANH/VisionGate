@@ -17,6 +17,7 @@ public class DeviceRepository : IDeviceRepository
     public async Task<IEnumerable<Device>> GetAllAsync()
     {
         return await _context.Devices
+            .AsNoTracking()
             .OrderBy(d => d.DeviceName)
             .ToListAsync();
     }
