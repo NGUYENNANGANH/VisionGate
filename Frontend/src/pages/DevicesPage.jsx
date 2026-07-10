@@ -68,8 +68,12 @@ function DevicesPage() {
   });
   const navigate = useNavigate();
 
-  const getGateLabel = (gateDirection) => Number(gateDirection) === 1 ? "Cổng ra" : "Cổng vào";
-  const getGateBadgeStyle = (gateDirection) => Number(gateDirection) === 1
+  const normalizeGateDirection = (gateDirection) => {
+    if (gateDirection === "Out" || gateDirection === "out" || gateDirection === 1 || gateDirection === "1") return 1;
+    return 0;
+  };
+  const getGateLabel = (gateDirection) => normalizeGateDirection(gateDirection) === 1 ? "Cổng ra" : "Cổng vào";
+  const getGateBadgeStyle = (gateDirection) => normalizeGateDirection(gateDirection) === 1
     ? { background: "rgba(79, 70, 229, .12)", color: "#4338ca" }
     : { background: "var(--primary-soft)", color: "var(--primary-700)" };
 
@@ -126,7 +130,7 @@ function DevicesPage() {
       rtspUsername: device.rtspUsername || "admin",
       rtspPassword: device.rtspPassword || "",
       rtspPort: device.rtspPort || 554,
-      gateDirection: device.gateDirection ?? 0,
+      gateDirection: normalizeGateDirection(device.gateDirection),
       isActive: device.isActive,
     });
     setShowModal(true);
