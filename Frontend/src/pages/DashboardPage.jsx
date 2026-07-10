@@ -136,7 +136,7 @@ function DashboardPage() {
       const violations = (violationsRes.data || []).map(item => ({
         name: item.employee?.fullName || 'Chưa xác định',
         photo: item.employee?.faceImageUrl || null,
-        loc: item.ppeDetection?.checkInRecord?.device?.location || 'Thiết bị đã xóa',
+        loc: item.deviceLocation || 'Thiết bị đã xóa',
         status: item.violationType === 5 ? 'unknown' : 'violation',
         time: item.createdAt ? new Date(item.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—',
         _raw: new Date(item.createdAt),
