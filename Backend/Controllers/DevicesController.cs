@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using VisionGate.Hubs;
 using VisionGate.Models;
 using VisionGate.Services.Interfaces;
 
@@ -10,10 +12,12 @@ namespace VisionGate.Controllers;
 public class DevicesController : ControllerBase
 {
     private readonly IDeviceService _deviceService;
+    private readonly IHubContext<VisionGateHub> _hubContext;
 
-    public DevicesController(IDeviceService deviceService)
+    public DevicesController(IDeviceService deviceService, IHubContext<VisionGateHub> hubContext)
     {
         _deviceService = deviceService;
+        _hubContext = hubContext;
     }
 
     [HttpGet]
@@ -74,6 +78,12 @@ public class DevicesController : ControllerBase
         var updated = await _deviceService.UpdateDeviceAsync(id, device);
         if (!updated)
             return NotFound();
+
+        await _hubContext.Clients.All.SendAsync("ReceiveDeviceStatus", new
+        {
+            deviceId = device.DeviceId,
+            isActive = device.IsActive
+        });
 
         return NoContent();
     }

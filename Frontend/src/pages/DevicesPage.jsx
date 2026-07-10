@@ -5,6 +5,7 @@ import { authService } from "../services/authService";
 import { AI_CORE_URL } from "../config/constants";
 import { uploadService } from "../services/uploadService";
 import api from "../services/api";
+import signalRService from "../services/signalRService";
 import Sidebar from "../components/layout/Sidebar";
 import Header from "../components/layout/Header";
 import "./DevicesPage.css";
@@ -78,21 +79,48 @@ function DevicesPage() {
     ? { background: "rgba(79, 70, 229, .12)", color: "#4338ca" }
     : { background: "var(--primary-soft)", color: "var(--primary-700)" };
 
-  const loadDevices = async () => {
+  const loadDevices = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await api.get("/devices");
       setDevices(response.data);
     } catch (error) {
       console.error("Failed to load devices:", error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadDevices();
-  }, []);
+  }, [loadDevices]);
+
+  useEffect(() => {
+    const handleDeviceStatus = (deviceStatus) => {
+      const deviceId = deviceStatus?.deviceId ?? deviceStatus?.DeviceId;
+      const isActive = deviceStatus?.isActive ?? deviceStatus?.IsActive;
+      if (!deviceId || typeof isActive !== "boolean") {
+        loadDevices({ silent: true });
+        return;
+      }
+
+      setDevices((prev) => prev.map((device) => (
+        device.deviceId === deviceId ? { ...device, isActive } : device
+      )));
+    };
+
+    signalRService.on("ReceiveDeviceStatus", handleDeviceStatus);
+    signalRService.start().catch(() => {});
+
+    const refreshTimer = window.setInterval(() => {
+      loadDevices({ silent: true });
+    }, 5000);
+
+    return () => {
+      window.clearInterval(refreshTimer);
+      signalRService.off("ReceiveDeviceStatus");
+    };
+  }, [loadDevices]);
 
   const handleLogout = () => {
     authService.logout();
