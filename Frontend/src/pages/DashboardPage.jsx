@@ -251,7 +251,7 @@ function DashboardPage() {
               <StatCard icon="users" tone="teal" value={stats?.totalEmployees ?? '—'} label="Nhân viên đang làm" />
               <StatCard icon="check" tone="green" value={stats?.todayCheckIns ?? '—'} label="Đang có mặt" sub="Hôm nay" />
               <StatCard icon="alert" tone="red" value={stats?.todayViolations ?? '—'} label="Vi phạm hôm nay" />
-              <StatCard icon="devices" tone="blue" value={`${stats?.onlineDevices ?? 0}/${stats?.totalDevices ?? 0}`} label="Thiết bị trực tuyến" sub={connected ? 'SignalR kết nối' : 'Ngoại tuyến'} />
+              <StatCard icon="devices" tone="blue" value={`${stats?.onlineDevices ?? 0}/${stats?.totalDevices ?? 0}`} label="Phiên đang kiểm tra" sub={connected ? 'Sẵn sàng nhận lượt' : 'Mất kết nối realtime'} />
             </div>
 
             {/* Main grid */}
@@ -316,7 +316,7 @@ function DashboardPage() {
                       ['Máy chủ nhận diện AI', 'green', 'Hoạt động'],
                       ['Cơ sở dữ liệu', 'green', 'Hoạt động'],
                       ['SignalR', connected ? 'green' : 'red', connected ? 'Kết nối' : 'Ngắt kết nối'],
-                      [`Camera (${stats?.onlineDevices ?? 0}/${stats?.totalDevices ?? 0})`, (stats?.onlineDevices ?? 0) > 0 ? 'green' : 'red', (stats?.onlineDevices ?? 0) > 0 ? 'Online' : 'Offline'],
+                      [`Phiên kiểm tra (${stats?.onlineDevices ?? 0}/${stats?.totalDevices ?? 0})`, (stats?.onlineDevices ?? 0) > 0 ? 'green' : 'red', (stats?.onlineDevices ?? 0) > 0 ? 'Đang chạy' : 'Chờ kích hoạt'],
                     ].map(([label, tone, text], i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)' }}>
