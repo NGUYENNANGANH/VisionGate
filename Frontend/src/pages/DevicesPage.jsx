@@ -63,9 +63,15 @@ function DevicesPage() {
     rtspUsername: "admin",
     rtspPassword: "",
     rtspPort: 554,
+    gateDirection: 0,
     isActive: true,
   });
   const navigate = useNavigate();
+
+  const getGateLabel = (gateDirection) => Number(gateDirection) === 1 ? "Cổng ra" : "Cổng vào";
+  const getGateBadgeStyle = (gateDirection) => Number(gateDirection) === 1
+    ? { background: "rgba(79, 70, 229, .12)", color: "#4338ca" }
+    : { background: "var(--primary-soft)", color: "var(--primary-700)" };
 
   const loadDevices = async () => {
     try {
@@ -106,7 +112,7 @@ function DevicesPage() {
 
   const handleAdd = () => {
     setSelectedDevice(null);
-    setFormData({ deviceCode: "", deviceName: "", location: "", ipAddress: "", rtspUsername: "admin", rtspPassword: "", rtspPort: 554, isActive: true });
+    setFormData({ deviceCode: "", deviceName: "", location: "", ipAddress: "", rtspUsername: "admin", rtspPassword: "", rtspPort: 554, gateDirection: 0, isActive: true });
     setShowModal(true);
   };
 
@@ -120,6 +126,7 @@ function DevicesPage() {
       rtspUsername: device.rtspUsername || "admin",
       rtspPassword: device.rtspPassword || "",
       rtspPort: device.rtspPort || 554,
+      gateDirection: device.gateDirection ?? 0,
       isActive: device.isActive,
     });
     setShowModal(true);
@@ -240,7 +247,12 @@ function DevicesPage() {
                         </div>
                         <div>
                           <div style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 16 }}>{d.deviceName}</div>
-                          <span className="chip-mono">#{d.deviceCode}</span>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                            <span className="chip-mono">#{d.deviceCode}</span>
+                            <span className="badge" style={{ ...getGateBadgeStyle(d.gateDirection), padding: "4px 8px", fontSize: 11 }}>
+                              <span className="bdot" />{getGateLabel(d.gateDirection)}
+                            </span>
+                          </div>
                         </div>
                       </div>
                       <div style={{ marginTop: 15, display: "grid", gap: 9 }}>
@@ -269,8 +281,8 @@ function DevicesPage() {
                     <div style={{ width: 48, height: 48, borderRadius: 14, background: "var(--surface-3)", display: "grid", placeItems: "center" }}>
                       <Plus size={24} />
                     </div>
-                    <div style={{ fontWeight: 700, fontSize: 14.5 }}>Thêm camera mới</div>
-                    <div style={{ fontSize: 12.5, textAlign: "center", maxWidth: 200 }}>Kết nối camera AI để kiểm tra tại cổng vào</div>
+                    <div style={{ fontWeight: 700, fontSize: 14.5 }}>Thêm thiết bị cổng</div>
+                    <div style={{ fontSize: 12.5, textAlign: "center", maxWidth: 200 }}>Kết nối camera AI cho cổng vào hoặc cổng ra</div>
                   </button>
                 )}
               </div>
@@ -303,6 +315,15 @@ function DevicesPage() {
                       <input className="input" type="text" value={formData.location}
                         onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                         required placeholder="Cổng vào chính - Tầng 1" />
+                    </div>
+                    <div className="field">
+                      <label>LOẠI CỔNG *</label>
+                      <select className="input" value={formData.gateDirection}
+                        onChange={(e) => setFormData({ ...formData, gateDirection: parseInt(e.target.value, 10) })}
+                        required>
+                        <option value={0}>Cổng vào</option>
+                        <option value={1}>Cổng ra</option>
+                      </select>
                     </div>
                     <div className="field">
                       <label>ĐỊA CHỈ IP (CAMERA) HOẶC LINK VIDEO TEST</label>

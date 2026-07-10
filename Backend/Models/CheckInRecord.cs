@@ -6,6 +6,12 @@ public enum CheckInStatus
     RejectedPPE = 1
 }
 
+public enum AttendanceEventType
+{
+    CheckIn = 0,
+    CheckOut = 1
+}
+
 public class CheckInRecord
 {
     public int CheckInId { get; set; }
@@ -15,6 +21,7 @@ public class CheckInRecord
     public string? CheckInImageUrl { get; set; }
     public decimal FaceConfidence { get; set; }
     public CheckInStatus Status { get; set; } = CheckInStatus.Success;
+    public AttendanceEventType AttendanceEventType { get; set; } = AttendanceEventType.CheckIn;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation

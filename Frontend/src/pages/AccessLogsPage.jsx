@@ -21,6 +21,12 @@ const getInitials = (name) => {
 
 const isRejectedPPE = (item) => item?.status === "RejectedPPE" || item?.status === 1;
 const PPE_VIOLATION_STATUS = "VI PH\u1EA0M PPE";
+const getAttendanceEventType = (item) => item?.attendanceEventType ?? item?.AttendanceEventType;
+const isCheckOutEvent = (item) => {
+  const eventType = getAttendanceEventType(item);
+  return eventType === "CheckOut" || eventType === 1;
+};
+const getAttendanceStatus = (item) => isCheckOutEvent(item) ? "DIEM DANH RA" : "DIEM DANH VAO";
 
 const getPpeViolationDescription = (ppeDetection) => {
   if (!ppeDetection) return "Thi\u1EBFu PPE";
@@ -83,7 +89,7 @@ function AccessLogsPage() {
           time: item.checkInTime,
           employee: item.employee,
           location: item.device?.location || "Thiết bị đã xóa",
-          status: isRejectedPPE(item) ? PPE_VIOLATION_STATUS : ((item.ppeDetection && item.ppeDetection.overallCompliance) ? "DIEM DANH" : "CANH BAO"),
+          status: isRejectedPPE(item) ? PPE_VIOLATION_STATUS : ((item.ppeDetection && item.ppeDetection.overallCompliance) ? getAttendanceStatus(item) : "CANH BAO"),
           statusType: isRejectedPPE(item) ? "violation" : ((item.ppeDetection && item.ppeDetection.overallCompliance) ? "success" : "warning"),
           imageUrl: item.checkInImageUrl,
           type: "checkin",
@@ -240,7 +246,8 @@ function AccessLogsPage() {
               <select className="select" value={filters.status}
                 onChange={(e) => handleFilterChange("status", e.target.value)}>
                 <option value="">Tất cả trạng thái</option>
-                <option value="DIEM DANH">Điểm danh</option>
+                <option value="DIEM DANH VAO">Điểm danh vào</option>
+                <option value="DIEM DANH RA">Điểm danh ra</option>
                 <option value={PPE_VIOLATION_STATUS}>{"Vi ph\u1EA1m PPE"}</option>
                 <option value="TRÁI PHÉP">Trái phép</option>
               </select>

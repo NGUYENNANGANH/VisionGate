@@ -62,6 +62,7 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.CheckInId);
             entity.Property(e => e.FaceConfidence).HasPrecision(5, 2);
             entity.Property(e => e.Status).HasDefaultValue(CheckInStatus.Success);
+            entity.Property(e => e.AttendanceEventType).HasDefaultValue(AttendanceEventType.CheckIn);
             entity.HasIndex(e => e.CheckInTime);
             entity.HasIndex(e => new { e.EmployeeId, e.CheckInTime });
             
@@ -119,6 +120,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.DeviceName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.DeviceCode).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Location).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.GateDirection).HasDefaultValue(GateDirection.In);
             entity.HasIndex(e => e.DeviceCode).IsUnique();
         });
 

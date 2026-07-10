@@ -53,9 +53,15 @@ public class CheckInsController : ControllerBase
     {
         try
         {
-            var missingPpeItems = GetMissingPpeItems(request);
+            var device = request.DeviceId.HasValue
+                ? await _context.Devices.AsNoTracking().FirstOrDefaultAsync(d => d.DeviceId == request.DeviceId.Value)
+                : null;
+            var eventType = device?.GateDirection == GateDirection.Out
+                ? AttendanceEventType.CheckOut
+                : AttendanceEventType.CheckIn;
+            var requiresPpe = eventType == AttendanceEventType.CheckIn;
+            var missingPpeItems = requiresPpe ? GetMissingPpeItems(request) : new List<string>();
             var hasFullPpe = missingPpeItems.Count == 0;
-
 
             // 1. Create CheckInRecord
             var checkIn = new CheckInRecord
@@ -66,6 +72,7 @@ public class CheckInsController : ControllerBase
                 FaceConfidence = request.FaceConfidence,
                 CheckInTime = DateTimeHelper.VietnamNow(),
                 Status = hasFullPpe ? CheckInStatus.Success : CheckInStatus.RejectedPPE,
+                AttendanceEventType = eventType,
             };
 
             var createdCheckIn = await _checkInService.CreateCheckInAsync(checkIn);
@@ -121,7 +128,9 @@ public class CheckInsController : ControllerBase
                         : $"{HolidayCheckInMessage}, \u0111\u1EA7y \u0111\u1EE7 \u0111\u1ED3 b\u1EA3o h\u1ED9")
                     : (violations.Any()
                         ? $"Vi ph\u1EA1m PPE: {string.Join(", ", missingPpeItems)}"
-                        : "Check-in th\u00E0nh c\u00F4ng, \u0111\u1EA7y \u0111\u1EE7 \u0111\u1ED3 b\u1EA3o h\u1ED9")
+                        : (eventType == AttendanceEventType.CheckOut
+                            ? "Check-out th\u00E0nh c\u00F4ng"
+                            : "Check-in th\u00E0nh c\u00F4ng, \u0111\u1EA7y \u0111\u1EE7 \u0111\u1ED3 b\u1EA3o h\u1ED9"))
             };
 
             // 6. Send realtime notification to all connected clients
@@ -134,7 +143,8 @@ public class CheckInsController : ControllerBase
                 hasViolations = violations.Any(),
                 violationCount = missingPpeItems.Count,
                 isHoliday = isHolidayCheckIn,
-                status = createdCheckIn.Status.ToString()
+                status = createdCheckIn.Status.ToString(),
+                attendanceEventType = createdCheckIn.AttendanceEventType.ToString()
             });
 
             // Send violation notification if any

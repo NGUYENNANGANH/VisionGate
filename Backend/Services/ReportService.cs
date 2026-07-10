@@ -46,10 +46,11 @@ public class ReportService : IReportService
             .Select(g => 
             {
                 var orderedScans = g.OrderBy(c => c.CheckInTime).ToList();
-                var firstScan = orderedScans[0];
-                var secondScan = orderedScans.Count >= 2 ? orderedScans[1] : null;
-                var inTime = TimeOnly.FromDateTime(firstScan.CheckInTime);
-                TimeOnly? outTime = secondScan == null ? null : TimeOnly.FromDateTime(secondScan.CheckInTime);
+                var employee = orderedScans[0].Employee;
+                var checkInRecord = orderedScans.FirstOrDefault(c => c.AttendanceEventType == AttendanceEventType.CheckIn);
+                var checkOutRecord = orderedScans.LastOrDefault(c => c.AttendanceEventType == AttendanceEventType.CheckOut);
+                TimeOnly? inTime = checkInRecord == null ? null : TimeOnly.FromDateTime(checkInRecord.CheckInTime);
+                TimeOnly? outTime = checkOutRecord == null ? null : TimeOnly.FromDateTime(checkOutRecord.CheckInTime);
                 var isHoliday = holidayCalendar.IsHoliday(g.Key.Date.ToDateTime(TimeOnly.MinValue));
                 
                 if (isHoliday)
@@ -57,8 +58,8 @@ public class ReportService : IReportService
                     return new
                     {
                         EmployeeId = g.Key.EmployeeId,
-                        EmployeeName = firstScan.Employee.FullName,
-                        EmployeeCode = firstScan.Employee.EmployeeCode,
+                        EmployeeName = employee.FullName,
+                        EmployeeCode = employee.EmployeeCode,
                         Date = g.Key.Date,
                         CheckInTime = inTime,
                         CheckOutTime = outTime,
@@ -69,14 +70,15 @@ public class ReportService : IReportService
                     };
                 }
 
-                var shift = firstScan.Employee.ShiftConfig;
+                var shift = employee.ShiftConfig;
                 var shiftStart = shift?.StartTime ?? new TimeOnly(8, 0);
                 var shiftEnd = shift?.EndTime ?? new TimeOnly(17, 0);
                 
                 // Nếu quyét duy nhất 1 lần, hoặc lần quét sau cách lần quét đầu < 1 phút thì coi như quên Check-Out (giảm từ 5 phút xuống 1 phút để dễ test)
-                bool isMissingCheckOut = !outTime.HasValue || (outTime.Value - inTime).TotalMinutes < 1; 
+                bool isMissingCheckIn = !inTime.HasValue;
+                bool isMissingCheckOut = !outTime.HasValue || (inTime.HasValue && (outTime.Value - inTime.Value).TotalMinutes < 1);
 
-                int lateMins = inTime > shiftStart ? (int)(inTime - shiftStart).TotalMinutes : 0;
+                int lateMins = inTime.HasValue && inTime.Value > shiftStart ? (int)(inTime.Value - shiftStart).TotalMinutes : 0;
                 int earlyMins = 0;
                 
                 if (!isMissingCheckOut && outTime!.Value < shiftEnd)
@@ -87,15 +89,15 @@ public class ReportService : IReportService
                 return new
                 {
                     EmployeeId = g.Key.EmployeeId,
-                    EmployeeName = firstScan.Employee.FullName,
-                    EmployeeCode = firstScan.Employee.EmployeeCode,
+                    EmployeeName = employee.FullName,
+                    EmployeeCode = employee.EmployeeCode,
                     Date = g.Key.Date,
                     CheckInTime = inTime,
                     CheckOutTime = isMissingCheckOut ? null as TimeOnly? : outTime,
                     LateMinutes = lateMins,
                     EarlyLeaveMinutes = earlyMins,
                     TotalCheckIns = g.Count(),
-                    Status = isMissingCheckOut ? "Thiếu Check-out" : (lateMins > 0 || earlyMins > 0 ? "Đi muộn/Về sớm" : "Đúng giờ")
+                    Status = isMissingCheckIn ? "Thiếu Check-in" : (isMissingCheckOut ? "Thiếu Check-out" : (lateMins > 0 || earlyMins > 0 ? "Đi muộn/Về sớm" : "Đúng giờ"))
                 };
             })
             .OrderByDescending(x => x.Date)
@@ -180,7 +182,7 @@ public class ReportService : IReportService
         var today = DateTimeHelper.VietnamNow().Date;
         var activeEmployees = await _context.Employees.Where(e => e.IsActive).CountAsync();
         var todayCheckIns = await _context.CheckInRecords
-            .Where(c => c.Status == CheckInStatus.Success && c.CheckInTime >= today)
+            .Where(c => c.Status == CheckInStatus.Success && c.AttendanceEventType == AttendanceEventType.CheckIn && c.CheckInTime >= today)
             .Select(c => c.EmployeeId).Distinct().CountAsync();
         var todayViolations = await _context.Violations
             .Where(v => v.CreatedAt >= today).CountAsync();
@@ -288,18 +290,19 @@ public class ReportService : IReportService
             .Select(g =>
             {
                 var orderedScans = g.OrderBy(c => c.CheckInTime).ToList();
-                var firstScan = orderedScans[0];
-                var secondScan = orderedScans.Count >= 2 ? orderedScans[1] : null;
-                var inTime = TimeOnly.FromDateTime(firstScan.CheckInTime);
-                TimeOnly? outTime = secondScan == null ? null : TimeOnly.FromDateTime(secondScan.CheckInTime);
+                var employee = orderedScans[0].Employee;
+                var checkInRecord = orderedScans.FirstOrDefault(c => c.AttendanceEventType == AttendanceEventType.CheckIn);
+                var checkOutRecord = orderedScans.LastOrDefault(c => c.AttendanceEventType == AttendanceEventType.CheckOut);
+                TimeOnly? inTime = checkInRecord == null ? null : TimeOnly.FromDateTime(checkInRecord.CheckInTime);
+                TimeOnly? outTime = checkOutRecord == null ? null : TimeOnly.FromDateTime(checkOutRecord.CheckInTime);
                 var isHoliday = holidayCalendar.IsHoliday(g.Key.Date.ToDateTime(TimeOnly.MinValue));
                 
                 if (isHoliday)
                 {
                     return new
                     {
-                        EmployeeCode = firstScan.Employee.EmployeeCode,
-                        EmployeeName = firstScan.Employee.FullName,
+                        EmployeeCode = employee.EmployeeCode,
+                        EmployeeName = employee.FullName,
                         Date = g.Key.Date,
                         CheckInTime = inTime,
                         CheckOutTime = outTime,
@@ -309,13 +312,14 @@ public class ReportService : IReportService
                     };
                 }
 
-                var shift = firstScan.Employee.ShiftConfig;
+                var shift = employee.ShiftConfig;
                 var shiftStart = shift?.StartTime ?? new TimeOnly(8, 0);
                 var shiftEnd = shift?.EndTime ?? new TimeOnly(17, 0);
 
-                bool isMissingCheckOut = !outTime.HasValue || (outTime.Value - inTime).TotalMinutes < 1;
+                bool isMissingCheckIn = !inTime.HasValue;
+                bool isMissingCheckOut = !outTime.HasValue || (inTime.HasValue && (outTime.Value - inTime.Value).TotalMinutes < 1);
 
-                int lateMins = inTime > shiftStart ? (int)(inTime - shiftStart).TotalMinutes : 0;
+                int lateMins = inTime.HasValue && inTime.Value > shiftStart ? (int)(inTime.Value - shiftStart).TotalMinutes : 0;
                 int earlyMins = 0;
                 if (!isMissingCheckOut && outTime!.Value < shiftEnd)
                 {
@@ -324,14 +328,14 @@ public class ReportService : IReportService
 
                 return new
                 {
-                    EmployeeCode = firstScan.Employee.EmployeeCode,
-                    EmployeeName = firstScan.Employee.FullName,
+                    EmployeeCode = employee.EmployeeCode,
+                    EmployeeName = employee.FullName,
                     Date = g.Key.Date,
                     CheckInTime = inTime,
                     CheckOutTime = isMissingCheckOut ? null as TimeOnly? : outTime,
                     LateMinutes = lateMins,
                     EarlyLeaveMinutes = earlyMins,
-                    Status = isMissingCheckOut ? "Thiếu Check-out" : (lateMins > 0 || earlyMins > 0 ? "Đi muộn/Về sớm" : "Đúng giờ")
+                    Status = isMissingCheckIn ? "Thiếu Check-in" : (isMissingCheckOut ? "Thiếu Check-out" : (lateMins > 0 || earlyMins > 0 ? "Đi muộn/Về sớm" : "Đúng giờ"))
                 };
             })
             .OrderByDescending(x => x.Date)
@@ -367,7 +371,7 @@ public class ReportService : IReportService
             ws.Cell(row, 3).Value = item.EmployeeName;
             ws.Cell(row, 4).Value = "";
             ws.Cell(row, 5).Value = item.Date.ToString("dd/MM/yyyy");
-            ws.Cell(row, 6).Value = item.CheckInTime.ToString("HH:mm");
+            ws.Cell(row, 6).Value = item.CheckInTime?.ToString("HH:mm") ?? "";
             ws.Cell(row, 7).Value = item.CheckOutTime?.ToString("HH:mm") ?? "";
             ws.Cell(row, 8).Value = item.LateMinutes;
             ws.Cell(row, 9).Value = item.EarlyLeaveMinutes;
@@ -478,7 +482,7 @@ public class ReportService : IReportService
                 EmployeeName = item.Employee?.FullName ?? "Khách lạ",
                 EmployeeCode = item.Employee?.EmployeeCode ?? "",
                 Location = item.Device?.Location ?? "Thiết bị đã xóa",
-                Status = item.Status == CheckInStatus.RejectedPPE ? "VI PH\u1EA0M PPE" : "DIEM DANH"
+                Status = item.Status == CheckInStatus.RejectedPPE ? "VI PH\u1EA0M PPE" : (item.AttendanceEventType == AttendanceEventType.CheckOut ? "DIEM DANH RA" : "DIEM DANH VAO")
             });
         }
 
@@ -596,8 +600,8 @@ public class ReportService : IReportService
             return new { success = true, action = "deleted" };
         }
 
-        CheckInRecord firstRecord = records.FirstOrDefault();
-        CheckInRecord lastRecord = records.Count > 1 ? records.LastOrDefault() : null;
+        CheckInRecord? firstRecord = records.FirstOrDefault(r => r.AttendanceEventType == AttendanceEventType.CheckIn);
+        CheckInRecord? lastRecord = records.LastOrDefault(r => r.AttendanceEventType == AttendanceEventType.CheckOut);
 
         if (request.CheckInTime.HasValue)
         {
@@ -610,12 +614,14 @@ public class ReportService : IReportService
                     CheckInTime = newInTime,
                     FaceConfidence = 100,
                     Status = CheckInStatus.Success,
-                                    };
+                    AttendanceEventType = AttendanceEventType.CheckIn,
+                };
                 _context.CheckInRecords.Add(firstRecord);
             }
             else
             {
                 firstRecord.CheckInTime = newInTime;
+                firstRecord.AttendanceEventType = AttendanceEventType.CheckIn;
             }
         }
 
@@ -630,12 +636,14 @@ public class ReportService : IReportService
                     CheckInTime = newOutTime,
                     FaceConfidence = 100,
                     Status = CheckInStatus.Success,
-                                    };
+                    AttendanceEventType = AttendanceEventType.CheckOut,
+                };
                 _context.CheckInRecords.Add(lastRecord);
             }
             else
             {
                 lastRecord.CheckInTime = newOutTime;
+                lastRecord.AttendanceEventType = AttendanceEventType.CheckOut;
             }
         }
         else if (lastRecord != null)
