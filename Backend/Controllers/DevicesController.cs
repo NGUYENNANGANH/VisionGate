@@ -49,6 +49,21 @@ public class DevicesController : ControllerBase
         return NoContent();
     }
 
+    [HttpPatch("{id}/active")]
+    public async Task<IActionResult> SetDeviceActive(int id, SetDeviceActiveRequest request)
+    {
+        var device = await _deviceService.GetDeviceByIdAsync(id);
+        if (device == null)
+            return NotFound();
+
+        device.IsActive = request.IsActive;
+        var updated = await _deviceService.UpdateDeviceAsync(id, device);
+        if (!updated)
+            return NotFound();
+
+        return NoContent();
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> DeleteDevice(int id)
@@ -67,3 +82,5 @@ public class DevicesController : ControllerBase
         }
     }
 }
+
+public record SetDeviceActiveRequest(bool IsActive);

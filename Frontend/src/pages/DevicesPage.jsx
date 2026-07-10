@@ -270,7 +270,7 @@ function DevicesPage() {
                       <Plus size={24} />
                     </div>
                     <div style={{ fontWeight: 700, fontSize: 14.5 }}>Thêm camera mới</div>
-                    <div style={{ fontSize: 12.5, textAlign: "center", maxWidth: 200 }}>Kết nối camera AI để bắt đầu giám sát ra vào</div>
+                    <div style={{ fontSize: 12.5, textAlign: "center", maxWidth: 200 }}>Kết nối camera AI để kiểm tra tại cổng vào</div>
                   </button>
                 )}
               </div>
@@ -341,7 +341,7 @@ function DevicesPage() {
                       <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                         <input type="checkbox" checked={formData.isActive}
                           onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })} />
-                        <span>Thiết bị hoạt động</span>
+                        <span>Kích hoạt lượt kiểm tra</span>
                       </label>
                     </div>
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>

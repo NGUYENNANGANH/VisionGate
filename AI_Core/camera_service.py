@@ -30,8 +30,8 @@ FALLBACK_IP = "192.168.1.29"   # dùng khi giao diện chưa nhập IP / không 
 USE_WEBCAM = False             # True = dùng webcam laptop thay camera IP
 USE_VIDEO = False               # True = dùng file mp4 thay vì RTSP/Webcam
 VIDEO_PATH = "d:/doan/VisionGate/AI_Core/IMG_3105.MOV" # Đường dẫn file video test
-CHECK_INTERVAL = 3
 RECOGNITION_INTERVAL = 3  # Tần suất lấy frame cho AI (chạy nền nên có thể để thấp)
+SESSION_TIMEOUT = int(os.getenv("CHECK_SESSION_TIMEOUT", "45"))
 
 # Cloudinary (unsigned upload) — đồng bộ với luồng đăng ký khuôn mặt ở Frontend.
 # Ảnh điểm danh/vi phạm được upload lên Cloudinary, DB chỉ lưu URL (không lưu base64).
@@ -39,7 +39,6 @@ CLOUDINARY_CLOUD_NAME = "dmh02ga34"
 CLOUDINARY_UPLOAD_PRESET = "visiongate"
 CLOUDINARY_FOLDER = "checkins"
 
-last_checkin_time = {}
 registered_count = 0
 
 def upload_to_cloudinary(jpeg_bytes):
@@ -107,6 +106,46 @@ def send_checkin_to_backend(employee_id, face_image, confidence, ppe=None):
         print(f"Check-in error: {e}")
         return False
 
+def set_device_active(device_id, is_active):
+    """Turn a device session on/off from the camera worker."""
+    try:
+        response = requests.patch(
+            f"{BACKEND_URL}/api/devices/{device_id}/active",
+            json={"isActive": bool(is_active)},
+            timeout=5
+        )
+        if response.status_code in (200, 204):
+            state = "ON" if is_active else "OFF"
+            print(f"[CameraService] Device #{device_id} set {state}")
+            return True
+        print(f"[CameraService] Cannot set device active. Status: {response.status_code}, Response: {response.text}")
+    except Exception as e:
+        print(f"[CameraService] Set device active error: {e}")
+    return False
+
+
+def ppe_is_compliant(ppe):
+    if not ppe:
+        return False
+
+    required_keys = ("hasHelmet", "hasGloves", "hasSafetyVest", "hasSafetyBoots", "hasMask")
+    return all(bool(ppe.get(key)) for key in required_keys)
+
+
+def missing_ppe_items(ppe):
+    if not ppe:
+        return ["chua co ket qua PPE"]
+
+    labels = {
+        "hasHelmet": "thieu mu",
+        "hasSafetyVest": "thieu ao phan quang",
+        "hasGloves": "thieu gang tay",
+        "hasSafetyBoots": "thieu giay bao ho",
+        "hasMask": "thieu khau trang",
+    }
+    return [label for key, label in labels.items() if not ppe.get(key)]
+
+
 def send_frame_to_api(frame):
     try:
         _, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 55])
@@ -119,12 +158,6 @@ def send_frame_to_api(frame):
     except Exception as e:
         print(f"send_frame error: {e}")
 
-def can_checkin(employee_id):
-    current_time = time.time()
-    if employee_id in last_checkin_time:
-        if current_time - last_checkin_time[employee_id] < CHECK_INTERVAL:
-            return False
-    return True
 
 def draw_face_info(frame, bbox, label, color):
     x1, y1, x2, y2 = bbox.astype(int)
@@ -191,8 +224,9 @@ def main():
         if not USE_VIDEO and not USE_WEBCAM:
             d = get_active_device_config()
             if d is None:
-                print("[CameraService] Khong co thiet bi active. Service dung han, khong poll nua.")
-                return
+                print("[CameraService] Khong co thiet bi active. Dang doi kich hoat...")
+                time.sleep(3)
+                continue
 
             ip = d.get('ipAddress') or FALLBACK_IP
             user = d.get('rtspUsername') or CAMERA_USERNAME
@@ -235,6 +269,15 @@ def main():
         cached_results = []
         cached_ppe = None
         last_api_check = time.time()
+        session_started_at = time.time()
+        session_completed = [False]
+        last_violation_candidate = {
+            "employee_id": None,
+            "frame": None,
+            "confidence": None,
+            "ppe": None,
+            "name": ""
+        }
 
         # --- Background recognition thread ---
         recog_queue = queue.Queue(maxsize=1)   # chỉ giữ 1 frame chờ xử lý
@@ -242,38 +285,68 @@ def main():
         recog_running = [True]
 
         def recognition_worker():
-            while recog_running[0]:
+            nonlocal cached_results, cached_ppe
+            global registered_count
+
+            while recog_running[0] and not session_completed[0]:
                 try:
                     frame_to_recog = recog_queue.get(timeout=1)
                 except queue.Empty:
                     continue
+
                 result = recognize_frame(frame_to_recog)
-                if result and result.get('success'):
-                    nonlocal cached_results, cached_ppe
-                    global registered_count
-                    new_results = []
-                    with recog_result_lock:
-                        registered_count = result.get('registeredCount', registered_count)
-                        cached_ppe = result.get('ppe')
-                        for f in result.get('faces', []):
-                            bbox = np.array(f['bbox'], dtype=float)
-                            dist = float(f.get('distance', 1.0))
-                            emp_id = f.get('employeeId')
-                            
-                            if emp_id:
-                                clean_name = unidecode(f.get('name') or '')
-                                label = f"{clean_name} (Dist: {dist:.2f})"
+                if not (result and result.get('success')):
+                    continue
+
+                new_results = []
+                success_candidate = None
+
+                with recog_result_lock:
+                    registered_count = result.get('registeredCount', registered_count)
+                    cached_ppe = result.get('ppe')
+                    ppe_snapshot = cached_ppe.copy() if isinstance(cached_ppe, dict) else None
+
+                    for f in result.get('faces', []):
+                        bbox = np.array(f['bbox'], dtype=float)
+                        dist = float(f.get('distance', 1.0))
+                        emp_id = f.get('employeeId')
+
+                        if emp_id:
+                            clean_name = unidecode(f.get('name') or '')
+                            if ppe_snapshot and ppe_is_compliant(ppe_snapshot):
+                                label = f"{clean_name} | PPE OK"
                                 color = (0, 255, 0)
-                                if can_checkin(emp_id):
-                                    print(f"Detected: {clean_name}")
-                                    send_checkin_to_backend(emp_id, frame_to_recog.copy(), dist, cached_ppe)
-                                    last_checkin_time[emp_id] = time.time()
+                                if success_candidate is None:
+                                    success_candidate = (emp_id, frame_to_recog.copy(), dist, ppe_snapshot, clean_name)
+                            elif ppe_snapshot:
+                                missing = ", ".join(missing_ppe_items(ppe_snapshot))
+                                label = f"{clean_name} | {missing}"
+                                color = (0, 165, 255)
+                                last_violation_candidate.update({
+                                    "employee_id": emp_id,
+                                    "frame": frame_to_recog.copy(),
+                                    "confidence": dist,
+                                    "ppe": ppe_snapshot,
+                                    "name": clean_name
+                                })
+                                print(f"[CameraService] {clean_name} thieu PPE: {missing}. Cho sua trong phien.")
                             else:
-                                label = f"UNKNOWN (Dist: {dist:.2f})"
-                                color = (0, 0, 255)
-                                
-                            new_results.append({'bbox': bbox, 'label': label, 'color': color})
-                        cached_results = new_results
+                                label = f"{clean_name} | PPE pending"
+                                color = (0, 255, 255)
+                        else:
+                            label = f"UNKNOWN (Dist: {dist:.2f})"
+                            color = (0, 0, 255)
+
+                        new_results.append({'bbox': bbox, 'label': label, 'color': color})
+
+                    cached_results = new_results
+
+                if success_candidate and not session_completed[0]:
+                    emp_id, snapshot, dist, ppe_snapshot, clean_name = success_candidate
+                    print(f"[CameraService] {clean_name} du PPE. Luu diem danh va tat phien.")
+                    send_checkin_to_backend(emp_id, snapshot, dist, ppe_snapshot)
+                    session_completed[0] = True
+                    set_device_active(DEVICE_ID, False)
 
         recog_thread = threading.Thread(target=recognition_worker, daemon=True)
         recog_thread.start()
@@ -293,6 +366,31 @@ def main():
         # --- End background threads setup ---
 
         while True:
+            if session_completed[0]:
+                should_stop_service = True
+                break
+
+            if time.time() - session_started_at >= SESSION_TIMEOUT:
+                with recog_result_lock:
+                    timeout_candidate = last_violation_candidate.copy()
+
+                if timeout_candidate.get("employee_id") and timeout_candidate.get("ppe"):
+                    missing = ", ".join(missing_ppe_items(timeout_candidate["ppe"]))
+                    print(f"[CameraService] Het thoi gian phien. Luu vi pham PPE: {missing}")
+                    send_checkin_to_backend(
+                        timeout_candidate["employee_id"],
+                        timeout_candidate["frame"],
+                        timeout_candidate["confidence"],
+                        timeout_candidate["ppe"]
+                    )
+                else:
+                    print("[CameraService] Het thoi gian phien nhung khong co nhan vien hop le. Khong luu ban ghi.")
+
+                session_completed[0] = True
+                set_device_active(DEVICE_ID, False)
+                should_stop_service = True
+                break
+
             # Check API periodically (e.g. every 10 seconds) to see if device was turned off
             if time.time() - last_api_check > 10:
                 last_api_check = time.time()
@@ -367,8 +465,9 @@ def main():
         recog_running[0] = False
         cap.release()
         if should_stop_service:
-            print("[CameraService] Thiet bi da tat. Service dung han, khong poll nua.")
-            return
+            print("[CameraService] Thiet bi da tat. Dang doi luot kiem tra tiep theo...")
+            time.sleep(2)
+            continue
 
         print("Camera Service stopped for this session. Reconnecting...")
         time.sleep(2)

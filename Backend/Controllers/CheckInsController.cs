@@ -56,6 +56,21 @@ public class CheckInsController : ControllerBase
             var missingPpeItems = GetMissingPpeItems(request);
             var hasFullPpe = missingPpeItems.Count == 0;
 
+            if (hasFullPpe)
+            {
+                var existingSuccess = await GetExistingSuccessfulCheckInTodayAsync(request.EmployeeId);
+                if (existingSuccess != null)
+                {
+                    return Ok(new AIProcessResponse
+                    {
+                        CheckInId = existingSuccess.CheckInId,
+                        HasPPE = true,
+                        HasViolations = false,
+                        Message = "Nhan vien da diem danh thanh cong trong hom nay"
+                    });
+                }
+            }
+
             // 1. Create CheckInRecord
             var checkIn = new CheckInRecord
             {
@@ -158,6 +173,22 @@ public class CheckInsController : ControllerBase
         {
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    private async Task<CheckInRecord?> GetExistingSuccessfulCheckInTodayAsync(int employeeId)
+    {
+        var now = DateTimeHelper.VietnamNow();
+        var startOfDay = now.Date;
+        var startOfNextDay = startOfDay.AddDays(1);
+
+        return await _context.CheckInRecords
+            .AsNoTracking()
+            .Where(c => c.EmployeeId == employeeId
+                && c.Status == CheckInStatus.Success
+                && c.CheckInTime >= startOfDay
+                && c.CheckInTime < startOfNextDay)
+            .OrderByDescending(c => c.CheckInTime)
+            .FirstOrDefaultAsync();
     }
 
     private async Task<HashSet<DayOfWeek>> GetWeeklyOffDaysAsync()
