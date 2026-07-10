@@ -103,6 +103,8 @@ const normalizeDashboardStats = (data = {}) => ({
   shoesComplianceRate: data.shoesComplianceRate ?? data.ShoesComplianceRate ?? 100,
 });
 
+const isRejectedPPE = (item) => item?.status === "RejectedPPE" || item?.status === 1;
+
 function DashboardPage() {
   const [user] = useState(() => authService.getUser());
   const [stats, setStats] = useState(EMPTY_DASHBOARD_STATS);
@@ -125,15 +127,22 @@ function DashboardPage() {
         api.get("/checkins?pageSize=20"),
         api.get("/violations?isResolved=false"),
       ]);
-      const checkins = (checkInsRes.data || []).map(item => ({
+      const checkInItems = checkInsRes.data || [];
+      const rejectedPpeDetectionIds = new Set(
+        checkInItems
+          .filter(isRejectedPPE)
+          .map((item) => item.ppeDetection?.ppeDetectionId)
+          .filter(Boolean),
+      );
+      const checkins = checkInItems.map(item => ({
         name: item.employee?.fullName || 'Chưa xác định',
         photo: item.employee?.faceImageUrl || null,
         loc: item.device?.location || 'Thiết bị đã xóa',
-        status: item.status === 'RejectedPPE' ? 'rejected' : ((item.ppeDetection && item.ppeDetection.overallCompliance) ? 'ok' : 'violation'),
+        status: isRejectedPPE(item) ? 'rejected' : ((item.ppeDetection && item.ppeDetection.overallCompliance) ? 'ok' : 'violation'),
         time: item.checkInTime ? new Date(item.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—',
         _raw: new Date(item.checkInTime),
       }));
-      const violations = (violationsRes.data || []).map(item => ({
+      const violations = (violationsRes.data || []).filter(item => !rejectedPpeDetectionIds.has(item.ppeDetectionId)).map(item => ({
         name: item.employee?.fullName || 'Chưa xác định',
         photo: item.employee?.faceImageUrl || null,
         loc: item.deviceLocation || 'Thiết bị đã xóa',
@@ -275,7 +284,7 @@ function DashboardPage() {
                         </div>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
                           <VGBadge tone={a.status === 'ok' ? 'green' : (a.status === 'violation' || a.status === 'rejected') ? 'amber' : 'red'}>
-                            {a.status === 'ok' ? 'Hợp lệ' : a.status === 'rejected' ? 'Từ chối PPE' : a.status === 'violation' ? 'Vi phạm' : 'Lạ mặt'}
+                            {a.status === 'ok' ? 'Hợp lệ' : a.status === 'rejected' ? 'Vi ph\u1EA1m PPE' : a.status === 'violation' ? 'Vi ph\u1EA1m PPE' : 'Lạ mặt'}
                           </VGBadge>
                           <div className="mono" style={{ fontSize: 11.5, color: 'var(--ink-3)', marginTop: 5 }}>{a.time}</div>
                         </div>

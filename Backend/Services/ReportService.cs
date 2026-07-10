@@ -394,6 +394,7 @@ public class ReportService : IReportService
                 EmployeeCode = v.Employee != null ? v.Employee.EmployeeCode : "N/A",
                 EmployeeName = v.Employee != null ? v.Employee.FullName : "N/A",
                 v.ViolationType,
+                v.Description,
                 v.IsResolved,
                 v.CreatedAt
             })
@@ -417,9 +418,10 @@ public class ReportService : IReportService
             ws.Cell(row, 2).Value = item.EmployeeCode;
             ws.Cell(row, 3).Value = item.EmployeeName;
             ws.Cell(row, 4).Value = "";
-            ws.Cell(row, 5).Value = item.ViolationType.ToString();
+            ws.Cell(row, 5).Value = item.ViolationType == VisionGate.Models.ViolationType.Other ? "VI PH\u1EA0M PPE" : item.ViolationType.ToString();
             ws.Cell(row, 6).Value = "N/A";
-                        ws.Cell(row, 8).Value = item.IsResolved ? "Đã xử lý" : "Chưa xử lý";
+            ws.Cell(row, 7).Value = item.Description ?? "";
+            ws.Cell(row, 8).Value = item.IsResolved ? "Da xu ly" : "Chua xu ly";
             ws.Cell(row, 9).Value = item.CreatedAt.ToString("dd/MM/yyyy HH:mm");
 
             // Thin borders for data rows
@@ -439,6 +441,8 @@ public class ReportService : IReportService
 
         var violationsQuery = _context.Violations
             .Include(v => v.Employee)
+            .Include(v => v.PPEDetection)
+                .ThenInclude(p => p.CheckInRecord)
             .Where(v => !v.IsResolved)
             .AsQueryable();
 
@@ -468,11 +472,11 @@ public class ReportService : IReportService
                 EmployeeName = item.Employee?.FullName ?? "Khách lạ",
                 EmployeeCode = item.Employee?.EmployeeCode ?? "",
                 Location = item.Device?.Location ?? "Thiết bị đã xóa",
-                Status = item.Status == CheckInStatus.RejectedPPE ? "TU CHOI PPE" : "DIEM DANH"
+                Status = item.Status == CheckInStatus.RejectedPPE ? "VI PH\u1EA0M PPE" : "DIEM DANH"
             });
         }
 
-        foreach (var item in violations)
+        foreach (var item in violations.Where(v => v.PPEDetection?.CheckInRecord?.Status != CheckInStatus.RejectedPPE))
         {
             var isStranger = item.ViolationType == VisionGate.Models.ViolationType.UnauthorizedAccess;
             logs.Add(new AccessLogExportDto {
@@ -480,7 +484,7 @@ public class ReportService : IReportService
                 EmployeeName = isStranger ? "Khách lạ" : (item.Employee?.FullName ?? "N/A"),
                 EmployeeCode = isStranger ? "" : (item.Employee?.EmployeeCode ?? "N/A"),
                 Location = "Không xác định", // Violations don't store location directly in this version
-                Status = isStranger ? "KHÁCH LẠ" : "VI PHẠM"
+                Status = isStranger ? "KH\u00C1CH L\u1EA0" : "VI PH\u1EA0M PPE"
             });
         }
 

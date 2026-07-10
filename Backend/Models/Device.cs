@@ -14,5 +14,5 @@ public class Device
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation
-    public ICollection<CheckInRecord> CheckInRecords { get; set; } = new List<CheckInRecord>();
+    [System.Text.Json.Serialization.JsonIgnore] public ICollection<CheckInRecord> CheckInRecords { get; set; } = new List<CheckInRecord>();
 }

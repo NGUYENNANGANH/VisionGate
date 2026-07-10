@@ -132,7 +132,7 @@ def _sync_recognize(img_array):
 
 def _sync_detect_ppe(img_array):
     with model_lock:
-        results = ppe_model.predict(img_array, conf=0.25, iou=0.6, imgsz=800, verbose=False)
+        results = ppe_model.predict(img_array, conf=0.60, iou=0.6, imgsz=800, verbose=False)
     
     detected_names = set()
     confidences = []

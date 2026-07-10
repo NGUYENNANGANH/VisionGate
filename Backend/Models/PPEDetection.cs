@@ -15,6 +15,6 @@ public class PPEDetection
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation
-    public CheckInRecord? CheckInRecord { get; set; }
-    public ICollection<Violation> Violations { get; set; } = new List<Violation>();
+    [System.Text.Json.Serialization.JsonIgnore] public CheckInRecord? CheckInRecord { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore] public ICollection<Violation> Violations { get; set; } = new List<Violation>();
 }

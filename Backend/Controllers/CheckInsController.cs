@@ -53,7 +53,8 @@ public class CheckInsController : ControllerBase
     {
         try
         {
-            var hasFullPpe = request.HasHelmet && request.HasGloves && request.HasSafetyVest && request.HasSafetyBoots && request.HasMask;
+            var missingPpeItems = GetMissingPpeItems(request);
+            var hasFullPpe = missingPpeItems.Count == 0;
 
             // 1. Create CheckInRecord
             var checkIn = new CheckInRecord
@@ -83,29 +84,19 @@ public class CheckInsController : ControllerBase
             };
 
             await _ppeDetectionRepository.AddAsync(ppeDetection);
-            // 4. Create Violations if needed
+            // 4. Create one PPE violation if any required item is missing.
             var violationIds = new List<int>();
             var violations = new List<Violation>();
+            var violationDescription = missingPpeItems.Any()
+                ? $"Thi\u1EBFu PPE: {string.Join(", ", missingPpeItems)}"
+                : null;
 
-            if (!request.HasHelmet)
-                violations.Add(CreateViolation(request.EmployeeId, ppeDetection.PPEDetectionId, ViolationType.MissingHelmet));
-
-            if (!request.HasSafetyVest)
-                violations.Add(CreateViolation(request.EmployeeId, ppeDetection.PPEDetectionId, ViolationType.MissingSafetyVest));
-
-            if (!request.HasGloves)
-                violations.Add(CreateViolation(request.EmployeeId, ppeDetection.PPEDetectionId, ViolationType.MissingGloves));
-
-            if (!request.HasSafetyBoots)
-                violations.Add(CreateViolation(request.EmployeeId, ppeDetection.PPEDetectionId, ViolationType.MissingSafetyBoots));
-
-            if (!request.HasMask)
-                violations.Add(CreateViolation(request.EmployeeId, ppeDetection.PPEDetectionId, ViolationType.MissingMask));
-
-            foreach (var violation in violations)
+            if (missingPpeItems.Any())
             {
+                var violation = CreatePpeViolation(request.EmployeeId, ppeDetection.PPEDetectionId, violationDescription!);
                 await _violationRepository.AddAsync(violation);
                 violationIds.Add(violation.ViolationId);
+                violations.Add(violation);
             }
 
             // 5. Return response
@@ -125,10 +116,10 @@ public class CheckInsController : ControllerBase
                 ViolationIds = violationIds,
                 Message = isHolidayCheckIn
                     ? (violations.Any()
-                        ? $"{HolidayCheckInMessage}, bi tu choi diem danh do phat hien {violations.Count} vi pham PPE"
+                        ? $"{HolidayCheckInMessage}, vi ph\u1EA1m PPE ({string.Join(", ", missingPpeItems)})"
                         : $"{HolidayCheckInMessage}, \u0111\u1EA7y \u0111\u1EE7 \u0111\u1ED3 b\u1EA3o h\u1ED9")
                     : (violations.Any()
-                        ? $"Khong diem danh thanh cong do phat hien {violations.Count} vi pham PPE"
+                        ? $"Vi ph\u1EA1m PPE: {string.Join(", ", missingPpeItems)}"
                         : "Check-in th\u00E0nh c\u00F4ng, \u0111\u1EA7y \u0111\u1EE7 \u0111\u1ED3 b\u1EA3o h\u1ED9")
             };
 
@@ -140,7 +131,7 @@ public class CheckInsController : ControllerBase
                 checkInTime = createdCheckIn.CheckInTime,
                 hasPPE = ppeDetection.OverallCompliance,
                 hasViolations = violations.Any(),
-                violationCount = violations.Count,
+                violationCount = missingPpeItems.Count,
                 isHoliday = isHolidayCheckIn,
                 status = createdCheckIn.Status.ToString()
             });
@@ -151,11 +142,12 @@ public class CheckInsController : ControllerBase
                 await _hubContext.Clients.All.SendAsync("ReceiveNewViolation", new
                 {
                     employeeId = request.EmployeeId,
-                    violationCount = violations.Count,
+                    violationCount = missingPpeItems.Count,
                     violations = violations.Select(v => new
                     {
                         v.ViolationId,
                         v.ViolationType,
+                        v.Description,
                     })
                 });
             }
@@ -181,13 +173,27 @@ public class CheckInsController : ControllerBase
             .ToHashSet();
     }
 
-    private Violation CreateViolation(int employeeId, int ppeDetectionId, ViolationType type)
+    private static List<string> GetMissingPpeItems(AIProcessRequest request)
+    {
+        var items = new List<string>();
+
+        if (!request.HasHelmet) items.Add("thi\u1EBFu m\u0169");
+        if (!request.HasSafetyVest) items.Add("thi\u1EBFu \u00E1o ph\u1EA3n quang");
+        if (!request.HasGloves) items.Add("thi\u1EBFu g\u0103ng tay");
+        if (!request.HasSafetyBoots) items.Add("thi\u1EBFu gi\u00E0y b\u1EA3o h\u1ED9");
+        if (!request.HasMask) items.Add("thi\u1EBFu kh\u1EA9u trang");
+
+        return items;
+    }
+
+    private Violation CreatePpeViolation(int employeeId, int ppeDetectionId, string description)
     {
         return new Violation
         {
             EmployeeId = employeeId,
             PPEDetectionId = ppeDetectionId,
-            ViolationType = type,
+            ViolationType = ViolationType.Other,
+            Description = description,
             IsResolved = false,
             CreatedAt = DateTimeHelper.VietnamNow()
         };

@@ -92,6 +92,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Violation>(entity =>
         {
             entity.HasKey(e => e.ViolationId);
+            entity.Property(e => e.Description).HasMaxLength(500);
             entity.HasIndex(e => e.CreatedAt);
             entity.HasIndex(e => e.IsResolved);
             

@@ -6,7 +6,7 @@ public class EmployeeFace
     public int EmployeeId { get; set; }
     public string FaceImageUrl { get; set; } = string.Empty;
     public string? CloudinaryPublicId { get; set; }
-    public byte[] FaceEmbedding { get; set; } = Array.Empty<byte>();
+    [System.Text.Json.Serialization.JsonIgnore] public byte[] FaceEmbedding { get; set; } = Array.Empty<byte>();
     public bool IsPrimary { get; set; }
     public string Angle { get; set; } = "Front";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

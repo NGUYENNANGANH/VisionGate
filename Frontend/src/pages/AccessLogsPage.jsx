@@ -19,6 +19,22 @@ const getInitials = (name) => {
   return words.slice(-2).map((w) => w[0]).join("").toUpperCase();
 };
 
+const isRejectedPPE = (item) => item?.status === "RejectedPPE" || item?.status === 1;
+const PPE_VIOLATION_STATUS = "VI PH\u1EA0M PPE";
+
+const getPpeViolationDescription = (ppeDetection) => {
+  if (!ppeDetection) return "Thi\u1EBFu PPE";
+
+  const missing = [];
+  if (!ppeDetection.hasHelmet) missing.push("thi\u1EBFu m\u0169");
+  if (!ppeDetection.hasSafetyVest) missing.push("thi\u1EBFu \u00E1o ph\u1EA3n quang");
+  if (!ppeDetection.hasGloves) missing.push("thi\u1EBFu g\u0103ng tay");
+  if (!ppeDetection.hasSafetyBoots) missing.push("thi\u1EBFu gi\u00E0y b\u1EA3o h\u1ED9");
+  if (!ppeDetection.hasMask) missing.push("thi\u1EBFu kh\u1EA9u trang");
+
+  return missing.length ? `Thi\u1EBFu PPE: ${missing.join(", ")}` : "Thi\u1EBFu PPE";
+};
+
 function AccessLogsPage() {
   const [user] = useState(() => authService.getUser());
   const [logs, setLogs] = useState([]);
@@ -54,27 +70,36 @@ function AccessLogsPage() {
       const violationsResponse = await api.get(`/violations?${violationsParams}`);
       const violations = violationsResponse.data;
 
+      const rejectedPpeDetectionIds = new Set(
+        checkIns
+          .filter(isRejectedPPE)
+          .map((item) => item.ppeDetection?.ppeDetectionId)
+          .filter(Boolean),
+      );
+
       const combinedLogs = [
         ...checkIns.map((item) => ({
           id: `checkin-${item.checkInId}`,
           time: item.checkInTime,
           employee: item.employee,
           location: item.device?.location || "Thiết bị đã xóa",
-          status: item.status === "RejectedPPE" ? "TU CHOI PPE" : ((item.ppeDetection && item.ppeDetection.overallCompliance) ? "DIEM DANH" : "CANH BAO"),
-          statusType: item.status === "RejectedPPE" ? "violation" : ((item.ppeDetection && item.ppeDetection.overallCompliance) ? "success" : "warning"),
+          status: isRejectedPPE(item) ? PPE_VIOLATION_STATUS : ((item.ppeDetection && item.ppeDetection.overallCompliance) ? "DIEM DANH" : "CANH BAO"),
+          statusType: isRejectedPPE(item) ? "violation" : ((item.ppeDetection && item.ppeDetection.overallCompliance) ? "success" : "warning"),
           imageUrl: item.checkInImageUrl,
           type: "checkin",
+          description: isRejectedPPE(item) ? getPpeViolationDescription(item.ppeDetection) : null,
           rawData: item,
         })),
-        ...violations.map((item) => ({
+        ...violations.filter((item) => !rejectedPpeDetectionIds.has(item.ppeDetectionId)).map((item) => ({
           id: `violation-${item.violationId}`,
           time: item.createdAt,
           employee: item.employee,
           location: item.deviceLocation || "Thiết bị đã xóa",
-          status: item.violationType === 5 ? "TRÁI PHÉP" : "VI PHẠM",
+          status: item.violationType === 5 ? "TR\u00C1I PH\u00C9P" : PPE_VIOLATION_STATUS,
           statusType: item.severity >= 2 ? "critical" : "violation",
           imageUrl: item.imageUrl,
           type: "violation",
+          description: item.description || null,
           rawData: item,
         })),
       ];
@@ -215,8 +240,8 @@ function AccessLogsPage() {
               <select className="select" value={filters.status}
                 onChange={(e) => handleFilterChange("status", e.target.value)}>
                 <option value="">Tất cả trạng thái</option>
-                <option value="ĐIỂM DANH">Điểm danh</option>
-                <option value="VI PHẠM">Vi phạm</option>
+                <option value="DIEM DANH">Điểm danh</option>
+                <option value={PPE_VIOLATION_STATUS}>{"Vi ph\u1EA1m PPE"}</option>
                 <option value="TRÁI PHÉP">Trái phép</option>
               </select>
             </div>
@@ -392,11 +417,11 @@ function AccessLogsPage() {
               </div>
             </div>
 
-            {selectedLog.type === "violation" && selectedLog.rawData && (
+            {(selectedLog.type === "violation" || selectedLog.description) && selectedLog.rawData && (
               <div style={{ marginBottom: 24 }}>
                 <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 8 }}>Mô tả vi phạm</div>
                 <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", padding: 12, borderRadius: 8, color: "var(--red)", fontSize: 14, lineHeight: 1.5 }}>
-                  {selectedLog.rawData.description || "Phát hiện hành vi bất thường."}
+                  {selectedLog.description || selectedLog.rawData.description || "Phát hiện hành vi bất thường."}
                 </div>
               </div>
             )}

@@ -18,6 +18,7 @@ public class Violation
     public int EmployeeId { get; set; }
     public int? PPEDetectionId { get; set; }
     public ViolationType ViolationType { get; set; }
+    public string? Description { get; set; }
     public bool IsResolved { get; set; } = false;
     public DateTime? ResolvedAt { get; set; }
     public int? ResolvedBy { get; set; }
@@ -27,4 +28,10 @@ public class Violation
     public Employee? Employee { get; set; }
     public PPEDetection? PPEDetection { get; set; }
     public User? ResolvedByUser { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? DeviceLocation => PPEDetection?.CheckInRecord?.Device?.Location;
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? ImageUrl => PPEDetection?.CheckInRecord?.CheckInImageUrl;
 }

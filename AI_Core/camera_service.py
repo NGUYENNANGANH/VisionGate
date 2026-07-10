@@ -301,7 +301,15 @@ def main():
                         should_stop_service = True
                         break
 
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            if fps <= 0 or fps > 120: fps = 30
+            frame_time = 1.0 / fps
+            start_time = time.time()
             ret, frame = cap.read()
+            if not (isinstance(source, str) and source.startswith('rtsp')):
+                elapsed = time.time() - start_time
+                if elapsed < frame_time:
+                    time.sleep(frame_time - elapsed)
             if not ret: 
                 print("[CameraService] Mất kết nối stream. Đang thử lại...")
                 break
