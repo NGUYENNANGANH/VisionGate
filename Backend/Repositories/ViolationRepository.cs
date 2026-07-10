@@ -22,7 +22,10 @@ public class ViolationRepository : IViolationRepository
         DateTime? to = null)
     {
         var query = _context.Violations
+            .Include(v => v.Employee)
             .Include(v => v.PPEDetection)
+                .ThenInclude(p => p.CheckInRecord)
+                    .ThenInclude(c => c.Device)
             .AsQueryable();
 
         if (isResolved.HasValue)

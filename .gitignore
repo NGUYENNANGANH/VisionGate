@@ -617,3 +617,12 @@ AI_Core/__pycache__/
 AI_Core/*.onnx
 AI_Core/insightface/
 AI_Core/models/
+
+# Ignore test videos and images
+*.mp4
+*.MOV
+*.mov
+*.mkv
+*.avi
+test_frame*.jpg
+test_frame*.mjpeg

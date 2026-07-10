@@ -70,7 +70,7 @@ function AccessLogsPage() {
           id: `violation-${item.violationId}`,
           time: item.createdAt,
           employee: item.employee,
-          location: item.checkInRecord?.device?.location || "Thiết bị đã xóa",
+          location: item.ppeDetection?.checkInRecord?.device?.location || "Thiết bị đã xóa",
           status: item.violationType === 5 ? "TRÁI PHÉP" : "VI PHẠM",
           statusType: item.severity >= 2 ? "critical" : "violation",
           imageUrl: item.imageUrl,
