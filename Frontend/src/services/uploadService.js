@@ -18,9 +18,9 @@ export const uploadService = {
       throw new Error("Chi chap nhan file anh (JPG, PNG) hoac video (MP4, MOV)");
     }
 
-    const maxSize = isVideo ? 100 * 1024 * 1024 : 5 * 1024 * 1024;
+    const maxSize = isVideo ? 200 * 1024 * 1024 : 5 * 1024 * 1024;
     if (file.size > maxSize) {
-      throw new Error(isVideo ? "Kich thuoc video khong duoc vuot qua 100MB" : "Kich thuoc anh khong duoc vuot qua 5MB");
+      throw new Error(isVideo ? "Kich thuoc video khong duoc vuot qua 200MB" : "Kich thuoc anh khong duoc vuot qua 5MB");
     }
 
     const formData = new FormData();
